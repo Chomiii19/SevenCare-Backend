@@ -13,6 +13,16 @@ const UserSchema = new mongoose.Schema<IUser>({
     type: String,
     required: [true, "Surname field is required"],
   },
+  gender: {
+    type: String,
+    enum: ["Male", "Female", "Other"],
+    required: true,
+  },
+  maritalStatus: {
+    type: String,
+    enum: ["Single", "Married", "Divorced", "Widowed"],
+    required: true,
+  },
   birthDate: {
     type: String,
     required: [true, "Birthdate field is required"],

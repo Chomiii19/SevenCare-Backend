@@ -15,7 +15,7 @@ app.use(
   cors({
     origin: ["http://localhost:5173"],
     credentials: true,
-  })
+  }),
 );
 app.use(express.json());
 app.use(cookieParser());
@@ -25,7 +25,7 @@ app.use("/api/v1/users", protect, userRoutes);
 app.use("/api/v1/appointments", protect, appointmentRoutes);
 // app.use("/api/v1/transactions");
 app.use("/{*splat}", (req: Request, res: Response, next: NextFunction) =>
-  next(new AppError(`Can't find ${req.originalUrl} from the server.`, 404))
+  next(new AppError(`Can't find ${req.originalUrl} from the server.`, 404)),
 );
 app.use(globalErrorHandler);
 
