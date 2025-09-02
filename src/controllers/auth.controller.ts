@@ -10,7 +10,7 @@ import PasswordResetCode from "../models/passwordResetModel";
 const createSendToken = (
   res: Response,
   userId: Types.ObjectId,
-  statusCode: number
+  statusCode: number,
 ) => {
   const token = signToken({ userId });
 
@@ -70,7 +70,7 @@ export const signup = catchAsync(
     });
 
     createSendToken(res, newUser._id, 201);
-  }
+  },
 );
 
 export const login = catchAsync(
@@ -86,7 +86,7 @@ export const login = catchAsync(
       return next(new AppError("Incorrect user credentials", 400));
 
     createSendToken(res, user._id, 200);
-  }
+  },
 );
 
 export const forgotPassword = catchAsync(
@@ -116,7 +116,7 @@ export const forgotPassword = catchAsync(
     });
 
     res.status(200).json({ status: "Success" });
-  }
+  },
 );
 
 export const resetPassword = catchAsync(
@@ -149,7 +149,7 @@ export const resetPassword = catchAsync(
     await PasswordResetCode.deleteMany({ userId: user._id }); // cleanup
 
     createSendToken(res, user._id, 200);
-  }
+  },
 );
 
 export const logout = catchAsync(
@@ -161,5 +161,5 @@ export const logout = catchAsync(
       path: "/",
     });
     res.status(200).json({ status: "Success" });
-  }
+  },
 );

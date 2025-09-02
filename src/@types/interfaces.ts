@@ -5,8 +5,8 @@ export interface IUser extends Document {
   firstname: string;
   surname: string;
   birthDate: string;
-  gender: "Male" | "Female";
-  maritalStatus: "Single" | "Married" | "Widowed";
+  gender: string;
+  maritalStatus: string;
   address: string;
   email: string;
   phoneNumber: string;

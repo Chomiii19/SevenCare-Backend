@@ -15,12 +15,10 @@ const UserSchema = new mongoose.Schema<IUser>({
   },
   gender: {
     type: String,
-    enum: ["Male", "Female", "Other"],
     required: true,
   },
   maritalStatus: {
     type: String,
-    enum: ["Single", "Married", "Divorced", "Widowed"],
     required: true,
   },
   birthDate: {
