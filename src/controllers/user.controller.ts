@@ -22,25 +22,21 @@ export const updateAccount = catchAsync(
       "password",
     ];
 
-    const updates: Partial<IUser> = {};
+    const user = await User.findById(req.user._id);
+    if (!user) return next(new AppError("User not found", 404));
+
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
-        (updates as any)[field] = req.body[field];
+        (user as any)[field] = req.body[field];
       }
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { $set: updates },
-      { new: true, runValidators: true },
-    ).select("-password");
-
-    if (!updatedUser) return next(new AppError("User not found", 404));
+    await user.save();
 
     res.status(200).json({
       status: "Success",
       msg: "Account updated successfully",
-      data: updatedUser,
+      data: user,
     });
   },
 );
