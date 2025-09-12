@@ -7,7 +7,7 @@ export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { medicalDepartment, date, time, email, phoneNumber } = req.body;
 
-    if (!medicalDepartment || !date || !time || !email)
+    if (!medicalDepartment || !date || !time || !email || !phoneNumber)
       return next(new AppError("Invalid empty fields", 400));
 
     const schedule = new Date(`${date}T${time}:00`);
@@ -38,5 +38,22 @@ export const getAppointments = catchAsync(
     }).sort({ schedule: 1 });
 
     res.status(200).json({ status: "Success", data: appointments });
+  },
+);
+
+export const deleteAppointment = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const apptId = req.params.id;
+
+    if (!apptId) return next(new AppError("Appointment not found", 404));
+
+    const result = await Appointment.deleteOne({ _id: apptId });
+
+    if (result.deletedCount === 0)
+      return next(new AppError("Appointment not found", 404));
+
+    res
+      .status(200)
+      .json({ status: "Success", msg: "Appointment successfully deleted" });
   },
 );
