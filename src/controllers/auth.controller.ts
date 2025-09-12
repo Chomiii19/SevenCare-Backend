@@ -17,7 +17,7 @@ const createSendToken = (
   const cookieOption = {
     maxAge: Number(process.env.COOKIE_EXPIRES_IN) * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "PRODUCTION",
+    secure: true,
     sameSite: "none" as "none",
     path: "/",
   };
