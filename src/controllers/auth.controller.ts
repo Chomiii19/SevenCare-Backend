@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import crypto from "crypto";
-import catchAsync from "../../utils/catchAsync";
-import AppError from "../../utils/appError";
+import catchAsync from "../utils/catchAsync";
+import AppError from "../utils/appError";
 import { Types } from "mongoose";
 import signToken from "../utils/signToken";
 import User from "../models/user.model";

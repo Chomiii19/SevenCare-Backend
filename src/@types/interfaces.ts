@@ -13,3 +13,13 @@ export interface IUser extends Document {
   password: string;
   comparePassword: (password: string) => Promise<Boolean>;
 }
+
+export interface ITransactions {
+  _id: Types.ObjectId;
+  appointmentId: Types.ObjectId;
+  amount: number;
+  modeOfPayment: string;
+  status: string;
+  createdAt: Date;
+  isDeleted: boolean;
+}

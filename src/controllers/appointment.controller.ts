@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import Appointment from "../models/appointment.model";
-import catchAsync from "../../utils/catchAsync";
-import AppError from "../../utils/appError";
+import catchAsync from "../utils/catchAsync";
+import AppError from "../utils/appError";
 
 export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -38,5 +38,22 @@ export const getAppointments = catchAsync(
     }).sort({ schedule: 1 });
 
     res.status(200).json({ status: "Success", data: appointments });
+  },
+);
+
+export const deleteAppointment = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const apptId = req.params.id;
+
+    if (!apptId) return next(new AppError("Appointment not found", 404));
+
+    const result = await Appointment.deleteOne({ _id: apptId });
+
+    if (result.deletedCount === 0)
+      return next(new AppError("Appointment not found", 404));
+
+    res
+      .status(200)
+      .json({ status: "Success", msg: "Appointment successfully deleted" });
   },
 );
