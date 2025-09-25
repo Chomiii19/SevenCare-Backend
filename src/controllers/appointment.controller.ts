@@ -18,26 +18,29 @@ export const createAppointment = catchAsync(
     const newAppointment = await Appointment.create({
       patientId: req.user._id,
       medicalDepartment,
-      schedule,
+      schedule: toManilaDate(schedule),
       email,
       phoneNumber,
     });
 
     res.status(201).json({
       status: "Success",
-      data: newAppointment,
+      data: normalizeAppointments([newAppointment])[0],
     });
   },
 );
 
 export const getAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const appointments = await Appointment.find({
+    let appointments = await Appointment.find({
       patientId: req.user._id,
       isDeleted: false,
     }).sort({ schedule: 1 });
 
-    res.status(200).json({ status: "Success", data: appointments });
+    res.status(200).json({
+      status: "Success",
+      data: normalizeAppointments(appointments),
+    });
   },
 );
 
@@ -60,7 +63,7 @@ export const deleteAppointment = catchAsync(
 
 export const getAllPendingAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const appointments = await Appointment.find({
+    let appointments = await Appointment.find({
       isDeleted: false,
       status: "Pending",
     }).sort({ schedule: 1 });
@@ -68,7 +71,7 @@ export const getAllPendingAppointments = catchAsync(
     res.status(200).json({
       status: "Success",
       results: appointments.length,
-      data: appointments,
+      data: normalizeAppointments(appointments),
     });
   },
 );
@@ -101,7 +104,7 @@ export const getTodayApprovedAppointments = catchAsync(
       ),
     );
 
-    const appointments = await Appointment.find({
+    let appointments = await Appointment.find({
       isDeleted: false,
       status: "Approved",
       schedule: { $gte: startOfDay, $lte: endOfDay },
@@ -110,21 +113,21 @@ export const getTodayApprovedAppointments = catchAsync(
     res.status(200).json({
       status: "Success",
       results: appointments.length,
-      data: appointments,
+      data: normalizeAppointments(appointments),
     });
   },
 );
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const appointments = await Appointment.find({ isDeleted: false }).sort({
+    let appointments = await Appointment.find({ isDeleted: false }).sort({
       schedule: 1,
     });
 
     res.status(200).json({
       status: "Success",
       results: appointments.length,
-      data: appointments,
+      data: normalizeAppointments(appointments),
     });
   },
 );
@@ -139,11 +142,9 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     }
 
     if (appointment.status !== "Pending" && action !== "noshow") {
-      return res
-        .status(400)
-        .json({
-          message: "Only pending appointments can be approved/declined",
-        });
+      return res.status(400).json({
+        message: "Only pending appointments can be approved/declined",
+      });
     }
 
     if (action === "approve") {
@@ -157,8 +158,27 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     }
 
     await appointment.save();
-    res.status(200).json({ message: "Appointment updated", appointment });
+    res.status(200).json({
+      message: "Appointment updated",
+      appointment: normalizeAppointments([appointment])[0],
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
+// ✅ Helpers
+function toManilaDate(date: string | Date): Date {
+  const d = new Date(date);
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+  const offset = 8 * 60 * 60000; // Manila +08:00
+  return new Date(utc + offset);
+}
+
+function normalizeAppointments(appts: any[]) {
+  return appts.map((appt) => {
+    const obj = appt.toObject ? appt.toObject() : appt;
+    obj.schedule = toManilaDate(obj.schedule);
+    return obj;
+  });
+}
