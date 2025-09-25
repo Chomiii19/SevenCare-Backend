@@ -57,3 +57,108 @@ export const deleteAppointment = catchAsync(
       .json({ status: "Success", msg: "Appointment successfully deleted" });
   },
 );
+
+export const getAllPendingAppointments = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const appointments = await Appointment.find({
+      isDeleted: false,
+      status: "Pending",
+    }).sort({ schedule: 1 });
+
+    res.status(200).json({
+      status: "Success",
+      results: appointments.length,
+      data: appointments,
+    });
+  },
+);
+
+export const getTodayApprovedAppointments = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const now = new Date();
+
+    const startOfDay = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0,
+        0,
+        0,
+        0,
+      ),
+    );
+
+    const endOfDay = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        23,
+        59,
+        59,
+        999,
+      ),
+    );
+
+    const appointments = await Appointment.find({
+      isDeleted: false,
+      status: "Approved",
+      schedule: { $gte: startOfDay, $lte: endOfDay },
+    }).sort({ schedule: 1 });
+
+    res.status(200).json({
+      status: "Success",
+      results: appointments.length,
+      data: appointments,
+    });
+  },
+);
+
+export const getAllAppointments = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const appointments = await Appointment.find({ isDeleted: false }).sort({
+      schedule: 1,
+    });
+
+    res.status(200).json({
+      status: "Success",
+      results: appointments.length,
+      data: appointments,
+    });
+  },
+);
+
+export const updateAppointmentStatus = async (req: Request, res: Response) => {
+  try {
+    const { id, action } = req.params;
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    if (appointment.status !== "Pending" && action !== "noshow") {
+      return res
+        .status(400)
+        .json({
+          message: "Only pending appointments can be approved/declined",
+        });
+    }
+
+    if (action === "approve") {
+      appointment.status = "Approved";
+    } else if (action === "decline") {
+      appointment.status = "Declined";
+    } else if (action === "noshow") {
+      appointment.status = "No Show";
+    } else {
+      return res.status(400).json({ message: "Invalid action" });
+    }
+
+    await appointment.save();
+    res.status(200).json({ message: "Appointment updated", appointment });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};

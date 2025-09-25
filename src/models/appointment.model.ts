@@ -8,7 +8,7 @@ const AppointmentSchema = new mongoose.Schema({
     required: true,
   },
   medicalDepartment: {
-    type: String,
+    type: [String],
     required: true,
     enum: [
       "Consultation",
@@ -21,6 +21,12 @@ const AppointmentSchema = new mongoose.Schema({
       "Prenatal Check Up",
       "Family Planning",
     ],
+    validate: {
+      validator: function (v: string[]) {
+        return v.length > 0 && v.length <= 3;
+      },
+      message: "You must select between 1 and 3 departments",
+    },
   },
   schedule: {
     type: Date,
