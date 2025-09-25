@@ -18,7 +18,7 @@ export const createAppointment = catchAsync(
     const newAppointment = await Appointment.create({
       patientId: req.user._id,
       medicalDepartment,
-      schedule: toManilaDate(schedule),
+      schedule,
       email,
       phoneNumber,
     });
@@ -167,11 +167,10 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ Helpers
 function toManilaDate(date: string | Date): Date {
   const d = new Date(date);
   const utc = d.getTime() + d.getTimezoneOffset() * 60000;
-  const offset = 8 * 60 * 60000; // Manila +08:00
+  const offset = 8 * 60 * 60000;
   return new Date(utc + offset);
 }
 
