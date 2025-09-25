@@ -9,7 +9,7 @@ router
 router.route("/pending").get(appointmentController.getAllPendingAppointments);
 router.route("/all").get(appointmentController.getAllAppointments);
 router
-  .route("/appointments/:id/:action")
+  .route("/:id/:action")
   .patch(appointmentController.updateAppointmentStatus);
 router.route("/create").post(appointmentController.createAppointment);
 router.route("/:id").delete(appointmentController.deleteAppointment);
