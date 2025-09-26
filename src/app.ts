@@ -15,6 +15,7 @@ app.use(
   cors({
     origin: [
       "https://seven-care-user-frontend.vercel.app",
+      "https://sevencare-admin.vercel.app",
       "http://localhost:5173",
     ],
     credentials: true,
