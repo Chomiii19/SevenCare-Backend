@@ -173,8 +173,8 @@ function normalizeAppointments(appts: any[]) {
   return appts.map((appt) => {
     const obj = appt.toObject ? appt.toObject() : appt;
     const date = new Date(obj.schedule);
-    // Add 8 hours
-    date.setHours(date.getHours() + 8);
+
+    date.setHours(date.getHours() - 8);
     obj.schedule = date.toISOString();
     return obj;
   });
