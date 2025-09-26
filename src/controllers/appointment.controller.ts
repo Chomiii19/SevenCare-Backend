@@ -130,7 +130,8 @@ export const getAllAppointments = catchAsync(
       .sort({
         schedule: 1,
       })
-      .populate("patientId", "firstname surname");
+      .populate("patientId", "firstname surname")
+      .lean();
 
     res.status(200).json({
       status: "Success",
