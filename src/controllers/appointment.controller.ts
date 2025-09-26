@@ -132,6 +132,8 @@ export const getAllAppointments = catchAsync(
       })
       .populate("patientId", "firstname surname");
 
+    console.log(appointments);
+
     res.status(200).json({
       status: "Success",
       results: appointments.length,
