@@ -80,12 +80,14 @@ export const getTodayApprovedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
 
+    const offset = 8 * 60;
+
     const startOfDay = new Date(
       Date.UTC(
         now.getUTCFullYear(),
         now.getUTCMonth(),
         now.getUTCDate(),
-        0,
+        0 - 8,
         0,
         0,
         0,
@@ -97,14 +99,14 @@ export const getTodayApprovedAppointments = catchAsync(
         now.getUTCFullYear(),
         now.getUTCMonth(),
         now.getUTCDate(),
-        23,
+        23 - 8,
         59,
         59,
         999,
       ),
     );
 
-    let appointments = await Appointment.find({
+    const appointments = await Appointment.find({
       isDeleted: false,
       status: "Approved",
       schedule: { $gte: startOfDay, $lte: endOfDay },
@@ -113,7 +115,7 @@ export const getTodayApprovedAppointments = catchAsync(
     res.status(200).json({
       status: "Success",
       results: appointments.length,
-      data: normalizeAppointments(appointments),
+      data: appointments,
     });
   },
 );
