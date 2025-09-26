@@ -169,6 +169,21 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
+export const getCancelledAppointments = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const appointments = await Appointment.find({
+      isDeleted: false,
+      status: { $in: ["Cancelled", "No Show"] },
+    }).sort({ schedule: 1 });
+
+    res.status(200).json({
+      status: "Success",
+      results: appointments.length,
+      data: normalizeAppointments(appointments),
+    });
+  },
+);
+
 function normalizeAppointments(appts: any[]) {
   return appts.map((appt) => {
     const obj = appt.toObject ? appt.toObject() : appt;
