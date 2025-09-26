@@ -115,7 +115,7 @@ export const getTodayApprovedAppointments = catchAsync(
     res.status(200).json({
       status: "Success",
       results: appointments.length,
-      data: appointments,
+      data: normalizeAppointments(appointments),
     });
   },
 );
