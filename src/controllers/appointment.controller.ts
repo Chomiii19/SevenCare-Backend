@@ -169,17 +169,13 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
-function toManilaDate(date: string | Date): Date {
-  const d = new Date(date); // UTC from DB
-  const manilaOffset = 8 * 60; // minutes
-  const utcOffset = d.getTimezoneOffset(); // in minutes
-  return new Date(d.getTime() + (manilaOffset + utcOffset) * 60000);
-}
-
 function normalizeAppointments(appts: any[]) {
   return appts.map((appt) => {
-    const obj = appt.toObject ? appt.toObject() : { ...appt };
-    obj.schedule = toManilaDate(obj.schedule);
+    const obj = appt.toObject ? appt.toObject() : appt;
+    const date = new Date(obj.schedule);
+    // Add 8 hours
+    date.setHours(date.getHours() + 8);
+    obj.schedule = date.toISOString();
     return obj;
   });
 }
