@@ -66,7 +66,9 @@ export const getAllPendingAppointments = catchAsync(
     let appointments = await Appointment.find({
       isDeleted: false,
       status: "Pending",
-    }).sort({ schedule: 1 });
+    })
+      .sort({ schedule: 1 })
+      .populate("patientId", "firstname surname");
 
     res.status(200).json({
       status: "Success",
@@ -110,7 +112,9 @@ export const getTodayApprovedAppointments = catchAsync(
       isDeleted: false,
       status: "Approved",
       schedule: { $gte: startOfDay, $lte: endOfDay },
-    }).sort({ schedule: 1 });
+    })
+      .sort({ schedule: 1 })
+      .populate("patientId", "firstname surname");
 
     res.status(200).json({
       status: "Success",
@@ -122,9 +126,11 @@ export const getTodayApprovedAppointments = catchAsync(
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    let appointments = await Appointment.find({ isDeleted: false }).sort({
-      schedule: 1,
-    });
+    let appointments = await Appointment.find({ isDeleted: false })
+      .sort({
+        schedule: 1,
+      })
+      .populate("patientId", "firstname surname");
 
     res.status(200).json({
       status: "Success",
@@ -191,6 +197,12 @@ function normalizeAppointments(appts: any[]) {
 
     date.setHours(date.getHours() - 8);
     obj.schedule = date.toISOString();
+
+    if (obj.patientId) {
+      obj.patientName = `${obj.patientId.firstname} ${obj.patientId.surname}`;
+      delete obj.patientId;
+    }
+
     return obj;
   });
 }
