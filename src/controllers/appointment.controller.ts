@@ -149,16 +149,12 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    if (appointment.status !== "Pending" && action !== "noshow") {
-      return res.status(400).json({
-        message: "Only pending appointments can be approved/declined",
-      });
-    }
-
     if (action === "approve") {
       appointment.status = "Approved";
     } else if (action === "decline") {
       appointment.status = "Declined";
+    } else if (action === "completed") {
+      appointment.status = "Completed";
     } else if (action === "noshow") {
       appointment.status = "No Show";
     } else {
