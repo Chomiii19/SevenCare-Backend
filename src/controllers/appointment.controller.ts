@@ -82,36 +82,21 @@ export const getTodayApprovedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
 
-    const offset = 8 * 60;
+    // Compute the start/end of the day in UTC+8
+    const utc8Offset = 8 * 60 * 60 * 1000; // milliseconds
+    const localNow = new Date(now.getTime() + utc8Offset);
 
-    const startOfDay = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        0 - 8,
-        0,
-        0,
-        0,
-      ),
+    const startOfDayLocal = new Date(
+      Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate(), 0, 0, 0, 0),
     );
-
-    const endOfDay = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        23 - 8,
-        59,
-        59,
-        999,
-      ),
+    const endOfDayLocal = new Date(
+      Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate(), 23, 59, 59, 999),
     );
 
     const appointments = await Appointment.find({
       isDeleted: false,
       status: "Approved",
-      schedule: { $gte: startOfDay, $lte: endOfDay },
+      schedule: { $gte: startOfDayLocal, $lte: endOfDayLocal },
     })
       .sort({ schedule: 1 })
       .populate("patientId", "firstname surname");
@@ -123,6 +108,7 @@ export const getTodayApprovedAppointments = catchAsync(
     });
   },
 );
+
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
