@@ -63,20 +63,36 @@ export const deleteAppointment = catchAsync(
 
 export const getAllPendingAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    let appointments = await Appointment.find({
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Appointment.countDocuments({
+      isDeleted: false,
+      status: "Pending",
+    });
+
+    const appointments = await Appointment.find({
       isDeleted: false,
       status: "Pending",
     })
       .sort({ schedule: 1 })
+      .skip(skip)
+      .limit(limit)
       .populate("patientId", "firstname surname");
 
     res.status(200).json({
       status: "Success",
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
       results: appointments.length,
       data: normalizeAppointments(appointments),
     });
   },
 );
+
 
 export const getTodayApprovedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -93,17 +109,31 @@ export const getTodayApprovedAppointments = catchAsync(
       Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate(), 23, 59, 59, 999),
     );
 
-    const appointments = await Appointment.find({
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const filter = {
       isDeleted: false,
       status: "Approved",
       schedule: { $gte: startOfDayLocal, $lte: endOfDayLocal },
-    })
-      .sort({ schedule: 1 })
-      .populate("patientId", "firstname surname");
+    };
+
+    const [appointments, total] = await Promise.all([
+      Appointment.find(filter)
+        .sort({ schedule: 1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("patientId", "firstname surname"),
+      Appointment.countDocuments(filter),
+    ]);
 
     res.status(200).json({
       status: "Success",
       results: appointments.length,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
       data: normalizeAppointments(appointments),
     });
   },
