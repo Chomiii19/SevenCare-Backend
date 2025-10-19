@@ -76,7 +76,7 @@ export const getAllPendingAppointments = catchAsync(
       isDeleted: false,
       status: "Pending",
     })
-      .sort({ schedule: 1 })
+      .sort({ schedule: -1 })
       .skip(skip)
       .limit(limit)
       .populate("patientId", "firstname surname");
@@ -93,7 +93,6 @@ export const getAllPendingAppointments = catchAsync(
   },
 );
 
-
 export const getTodayApprovedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
@@ -103,10 +102,26 @@ export const getTodayApprovedAppointments = catchAsync(
     const localNow = new Date(now.getTime() + utc8Offset);
 
     const startOfDayLocal = new Date(
-      Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate(), 0, 0, 0, 0),
+      Date.UTC(
+        localNow.getUTCFullYear(),
+        localNow.getUTCMonth(),
+        localNow.getUTCDate(),
+        0,
+        0,
+        0,
+        0,
+      ),
     );
     const endOfDayLocal = new Date(
-      Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate(), 23, 59, 59, 999),
+      Date.UTC(
+        localNow.getUTCFullYear(),
+        localNow.getUTCMonth(),
+        localNow.getUTCDate(),
+        23,
+        59,
+        59,
+        999,
+      ),
     );
 
     const page = parseInt(req.query.page as string) || 1;
@@ -121,7 +136,7 @@ export const getTodayApprovedAppointments = catchAsync(
 
     const [appointments, total] = await Promise.all([
       Appointment.find(filter)
-        .sort({ schedule: 1 })
+        .sort({ schedule: -1 })
         .skip(skip)
         .limit(limit)
         .populate("patientId", "firstname surname"),
@@ -138,7 +153,6 @@ export const getTodayApprovedAppointments = catchAsync(
     });
   },
 );
-
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
