@@ -68,9 +68,7 @@ export const getAllPendingAppointments = catchAsync(
     const skip = (page - 1) * limit;
     const { status, date, service } = req.query;
 
-    const filter: any = { isDeleted: false };
-
-    if (status) filter.status = status;
+    const filter: any = { isDeleted: false, status: "Pending" };
 
     if (date) {
       const selectedDate = new Date(date as string);
