@@ -101,7 +101,10 @@ export const getAllPendingAppointments = catchAsync(
       filter.schedule = { $gte: start, $lt: end };
     }
 
-    if (service) filter.medicalDepartment = { $in: [service] };
+    if (service) {
+      const serviceArray = Array.isArray(service) ? service : [service];
+      filter.medicalDepartment = { $in: serviceArray };
+    }
 
     const total = await Appointment.countDocuments(filter);
 
@@ -222,7 +225,10 @@ export const getAllAppointments = catchAsync(
       filter.schedule = { $gte: start, $lt: end };
     }
 
-    if (service) filter.medicalDepartment = { $in: [service] };
+    if (service) {
+      const serviceArray = Array.isArray(service) ? service : [service];
+      filter.medicalDepartment = { $in: serviceArray };
+    }
 
     const appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
