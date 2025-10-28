@@ -55,6 +55,14 @@ export const getAdmins = catchAsync(
   },
 );
 
+export const getPatients = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const patients = await User.find({ role: "user" });
+
+    res.status(200).json({ status: "success", data: patients });
+  },
+);
+
 export const getAdmin = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
