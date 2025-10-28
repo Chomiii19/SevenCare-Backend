@@ -50,6 +50,10 @@ const UserSchema = new mongoose.Schema<IUser>({
     minlength: 8,
     select: false,
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 // @ts-expect-error
