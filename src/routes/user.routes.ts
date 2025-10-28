@@ -3,7 +3,7 @@ import * as userController from "../controllers/user.controller";
 
 const router = express.Router();
 
-router.route("/admins/create").get(userController.createAdmin);
+router.route("/admins/create").post(userController.createAdmin);
 router.route("/admins").get(userController.getAdmins);
 router.route("/patients").get(userController.getPatients);
 router.route("/my-account").get(userController.myAccount);
