@@ -24,3 +24,17 @@ export interface ITransactions {
   createdAt: Date;
   isDeleted: boolean;
 }
+
+export interface IServices {
+  _id: Types.ObjectId;
+  name: string;
+  price: number;
+  status: string;
+}
+
+export interface IDoctors {
+  _id: Types.ObjectId;
+  name: string;
+  specialization: string;
+  schedule: Date;
+}
