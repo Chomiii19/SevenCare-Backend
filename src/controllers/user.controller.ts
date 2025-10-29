@@ -77,22 +77,18 @@ export const getAdmin = catchAsync(
   },
 );
 
-export const updateAdmin = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const id = req.params.id;
+export const updateAdmin = catchAsync(async (req, res, next) => {
+  const id = req.params.id;
+  if (!id) return next(new AppError("ID not found", 404));
 
-    if (!id) return next(new AppError("ID not found", 404));
+  const admin = await User.findById(id);
+  if (!admin) return next(new AppError("Admin not found", 404));
 
-    const admin = await User.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+  Object.assign(admin, req.body);
+  await admin.save();
 
-    if (!admin) return next(new AppError("Admin not found", 404));
-
-    res.status(200).json({ status: "success", data: admin });
-  },
-);
+  res.status(200).json({ status: "success", data: admin });
+});
 
 export const deleteAdmin = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
