@@ -345,7 +345,7 @@ function normalizeAppointments(appts: any[]) {
 
 export const updateAppointmentDoctor = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { appointmentId } = req.params;
+    const { id } = req.params;
     const { doctorId } = req.body;
 
     if (!doctorId) return next(new AppError("doctorId is required", 400));
@@ -356,7 +356,7 @@ export const updateAppointmentDoctor = catchAsync(
     }
 
     const updated = await Appointment.findByIdAndUpdate(
-      appointmentId,
+      id,
       { doctorId },
       { new: true },
     )
