@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import Appointment from "../models/appointment.model";
 import catchAsync from "../utils/catchAsync";
 import AppError from "../utils/appError";
+import Doctor from "../models/doctor.model";
 
 export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -331,3 +332,35 @@ function normalizeAppointments(appts: any[]) {
     return obj;
   });
 }
+
+export const updateAppointmentDoctor = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { appointmentId } = req.params;
+    const { doctorId } = req.body;
+
+    if (!doctorId) return next(new AppError("doctorId is required", 400));
+
+    const doctorExists = await Doctor.findById(doctorId);
+    if (!doctorExists) {
+      return next(new AppError("Doctor not found", 404));
+    }
+
+    const updated = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      { doctorId },
+      { new: true },
+    )
+      .populate("patientId", "firstname surname email")
+      .populate("doctorId", "name specialization schedule");
+
+    if (!updated) {
+      return next(new AppError("Appointment not found", 404));
+    }
+
+    res.status(200).json({
+      status: "Success",
+      message: "Doctor updated for appointment",
+      data: updated,
+    });
+  },
+);
