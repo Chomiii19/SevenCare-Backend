@@ -237,7 +237,7 @@ export const getAllAppointments = catchAsync(
       { $match: match },
       {
         $lookup: {
-          from: "users",
+          from: "user",
           localField: "patientId",
           foreignField: "_id",
           as: "patient",

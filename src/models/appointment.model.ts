@@ -7,6 +7,11 @@ const AppointmentSchema = new mongoose.Schema({
     ref: "user",
     required: true,
   },
+  doctorId: {
+    type: Schema.Types.ObjectId,
+    ref: "doctor",
+    required: false,
+  },
   medicalDepartment: {
     type: [String],
     required: true,
