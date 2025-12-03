@@ -249,6 +249,7 @@ export const getAllAppointments = catchAsync(
       results: appointments.length,
       total,
       currentPage: page,
+      limit,
       totalPages: Math.ceil(total / limit),
       data: normalizeAppointments(appointments),
     });
