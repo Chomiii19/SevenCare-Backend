@@ -194,9 +194,9 @@ export const getAllAppointments = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const match: any = { isDeleted: false };
+    const filter: any = { isDeleted: false };
 
-    if (status) match.status = status;
+    if (status) filter.status = status;
 
     if (date) {
       const selectedDate = new Date(date as string);
@@ -225,52 +225,37 @@ export const getAllAppointments = catchAsync(
           999,
         ),
       );
-      match.schedule = { $gte: start, $lt: end };
+
+      filter.schedule = { $gte: start, $lt: end };
     }
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      match.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = { $in: serviceArray };
     }
 
-    const pipeline: any[] = [
-      { $match: match },
-      {
-        $lookup: {
-          from: "user",
-          localField: "patientId",
-          foreignField: "_id",
-          as: "patient",
-        },
-      },
-      { $unwind: "$patient" },
-    ];
+    // Fetch appointments with patient populated
+    let appointments = await Appointment.find(filter)
+      .sort({ schedule: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("patientId", "firstname surname");
 
+    let total = await Appointment.countDocuments(filter);
+
+    // Apply patientName filter if present
     if (patientName) {
       const regex = new RegExp(patientName as string, "i");
-      pipeline.push({
-        $match: {
-          $expr: {
-            $regexMatch: {
-              input: {
-                $concat: ["$patient.firstname", " ", "$patient.surname"],
-              },
-              regex: regex,
-            },
-          },
-        },
+      appointments = appointments.filter((appt) => {
+        const patient = appt.patientId as unknown as {
+          firstname: string;
+          surname: string;
+        };
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
       });
+      total = appointments.length; // update total for filtered results
     }
-
-    const totalCountPipeline = [...pipeline, { $count: "total" }];
-    const totalResult = await Appointment.aggregate(totalCountPipeline);
-    const total = totalResult[0]?.total || 0;
-
-    pipeline.push({ $sort: { schedule: -1 } });
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limit });
-
-    const appointments = await Appointment.aggregate(pipeline);
 
     res.status(200).json({
       status: "Success",
