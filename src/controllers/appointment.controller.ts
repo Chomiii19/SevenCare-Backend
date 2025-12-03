@@ -190,6 +190,10 @@ export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { status, date, service } = req.query;
 
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
     const filter: any = { isDeleted: false };
 
     if (status) filter.status = status;
@@ -230,13 +234,22 @@ export const getAllAppointments = catchAsync(
       filter.medicalDepartment = { $in: serviceArray };
     }
 
-    const appointments = await Appointment.find(filter)
-      .sort({ schedule: -1 })
-      .populate("patientId", "firstname surname");
+    const [appointments, total] = await Promise.all([
+      Appointment.find(filter)
+        .sort({ schedule: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("patientId", "firstname surname"),
+
+      Appointment.countDocuments(filter),
+    ]);
 
     res.status(200).json({
       status: "Success",
       results: appointments.length,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
       data: normalizeAppointments(appointments),
     });
   },
