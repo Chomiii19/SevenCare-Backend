@@ -189,7 +189,7 @@ export const getTodayApprovedAppointments = catchAsync(
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { status, date, service, patientName } = req.query;
+    const { status, date, service, patientName, doctorName } = req.query;
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 15;
@@ -240,7 +240,8 @@ export const getAllAppointments = catchAsync(
       .sort({ schedule: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("patientId", "firstname surname");
+      .populate("patientId", "firstname surname")
+      .populate("doctorId", "name");
 
     let total = await Appointment.countDocuments(filter);
 
@@ -256,6 +257,15 @@ export const getAllAppointments = catchAsync(
         return regex.test(fullName);
       });
       total = appointments.length; // update total for filtered results
+    }
+
+    if (doctorName) {
+      const regex = new RegExp(doctorName as string, "i");
+      appointments = appointments.filter((appt) => {
+        const d = appt.doctorId as any;
+        return d && regex.test(d.name);
+      });
+      total = appointments.length;
     }
 
     res.status(200).json({
