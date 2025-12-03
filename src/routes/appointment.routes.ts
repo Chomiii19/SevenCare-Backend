@@ -12,11 +12,11 @@ router.route("/all").get(appointmentController.getAllAppointments);
 router
   .route("/:id/:action")
   .patch(appointmentController.updateAppointmentStatus);
-router.route("/create").post(appointmentController.createAppointment);
 router
-  .route("/:id")
-  .patch(appointmentController.updateAppointmentDoctor)
-  .delete(appointmentController.deleteAppointment);
+  .route("/:id/doctor")
+  .patch(appointmentController.updateAppointmentDoctor);
+router.route("/create").post(appointmentController.createAppointment);
+router.route("/:id").delete(appointmentController.deleteAppointment);
 router.route("/").get(appointmentController.getAppointments);
 
 export default router;
