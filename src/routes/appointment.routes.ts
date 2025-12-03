@@ -10,11 +10,11 @@ router.route("/cancelled").get(appointmentController.getCancelledAppointments);
 router.route("/pending").get(appointmentController.getAllPendingAppointments);
 router.route("/all").get(appointmentController.getAllAppointments);
 router
-  .route("/:id/:action")
-  .patch(appointmentController.updateAppointmentStatus);
-router
   .route("/:id/doctor")
   .patch(appointmentController.updateAppointmentDoctor);
+router
+  .route("/:id/:action")
+  .patch(appointmentController.updateAppointmentStatus);
 router.route("/create").post(appointmentController.createAppointment);
 router.route("/:id").delete(appointmentController.deleteAppointment);
 router.route("/").get(appointmentController.getAppointments);
