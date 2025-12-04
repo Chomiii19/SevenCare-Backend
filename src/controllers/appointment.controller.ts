@@ -196,10 +196,10 @@ export const getAllAppointments = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const matchStage: any = { isDeleted: false };
+    const filter: any = { isDeleted: false };
 
     // Status filter
-    if (status) matchStage.status = status;
+    if (status) filter.status = status;
 
     // Date filter
     if (date) {
@@ -230,7 +230,7 @@ export const getAllAppointments = catchAsync(
         ),
       );
 
-      matchStage.schedule = { $gte: start, $lt: end };
+      filter.schedule = { $gte: start, $lt: end };
     }
 
     // Service filter (can be multi)
@@ -238,80 +238,48 @@ export const getAllAppointments = catchAsync(
       const serviceArray = Array.isArray(service)
         ? service
         : (service as string).split(",");
-      matchStage.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = { $in: serviceArray };
     }
 
-    // Aggregation pipeline
-    const pipeline: any[] = [{ $match: matchStage }];
+    // Build search filters
+    const patientMatch: any = {};
+    const doctorMatch: any = {};
 
-    // Lookup patient
-    pipeline.push({
-      $lookup: {
-        from: "patients",
-        localField: "patientId",
-        foreignField: "_id",
-        as: "patient",
-      },
-    });
-    pipeline.push({ $unwind: "$patient" });
-
-    // Lookup doctor
-    pipeline.push({
-      $lookup: {
-        from: "doctors",
-        localField: "doctorId",
-        foreignField: "_id",
-        as: "doctor",
-      },
-    });
-    pipeline.push({
-      $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true },
-    });
-
-    // Build search conditions
-    const searchConditions: any[] = [];
-
-    if (patientName) {
-      searchConditions.push({
-        "patient.firstname": { $regex: patientName as string, $options: "i" },
-      });
-      searchConditions.push({
-        "patient.surname": { $regex: patientName as string, $options: "i" },
-      });
+    if (patientName || search) {
+      const regex = patientName
+        ? new RegExp(patientName as string, "i")
+        : new RegExp(search as string, "i");
+      patientMatch.$or = [{ firstname: regex }, { surname: regex }];
     }
 
-    if (doctorName) {
-      searchConditions.push({
-        "doctor.name": { $regex: doctorName as string, $options: "i" },
-      });
+    if (doctorName || search) {
+      const regex = doctorName
+        ? new RegExp(doctorName as string, "i")
+        : new RegExp(search as string, "i");
+      doctorMatch.name = regex;
     }
 
-    if (search) {
-      const regex = new RegExp(search as string, "i");
-      searchConditions.push(
-        { "patient.firstname": regex },
-        { "patient.surname": regex },
-        { "doctor.name": regex },
-        { medicalDepartment: regex },
-      );
-    }
+    // Fetch appointments
+    const appointmentsPromise = Appointment.find(filter)
+      .sort({ schedule: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "patientId",
+        match: patientMatch,
+        select: "firstname surname",
+      })
+      .populate({ path: "doctorId", match: doctorMatch, select: "name" });
 
-    if (searchConditions.length > 0) {
-      pipeline.push({ $match: { $or: searchConditions } });
-    }
+    const totalPromise = Appointment.countDocuments(filter);
 
-    // Count total after filtering
-    const countPipeline = [...pipeline, { $count: "total" }];
-    const totalResult = await Appointment.aggregate(countPipeline);
-    const total = totalResult[0]?.total || 0;
+    let [appointments, total] = await Promise.all([
+      appointmentsPromise,
+      totalPromise,
+    ]);
 
-    // Pagination & sort
-    pipeline.push({ $sort: { schedule: -1 } });
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limit });
-
-    // Execute aggregation
-    const appointments = await Appointment.aggregate(pipeline);
+    // Remove appointments where populate failed due to search filter
+    appointments = appointments.filter((appt) => appt.patientId);
 
     res.status(200).json({
       status: "Success",
