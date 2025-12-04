@@ -31,6 +31,7 @@ export interface IServices {
   name: string;
   price: number;
   status: string;
+  createdAt: Date;
 }
 
 export interface IDoctors {

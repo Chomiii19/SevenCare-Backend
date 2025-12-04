@@ -15,6 +15,10 @@ const ServiceSchema = new mongoose.Schema<IServices>({
     type: String,
     required: [true, "Status can't be empty"],
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const Service = mongoose.model("services", ServiceSchema);
