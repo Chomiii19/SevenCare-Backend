@@ -3,7 +3,6 @@ import Appointment from "../models/appointment.model";
 import catchAsync from "../utils/catchAsync";
 import AppError from "../utils/appError";
 import Doctor from "../models/doctor.model";
-import { PipelineStage } from "mongoose";
 
 export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -197,16 +196,17 @@ export const getAllAppointments = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const match: any = { isDeleted: false };
+    const filter: any = { isDeleted: false };
 
     // Status filter
-    if (status) match.status = status;
+    if (status) filter.status = status;
 
     // Date filter
     if (date) {
       const selectedDate = new Date(date as string);
       const utc8Offset = 8 * 60 * 60 * 1000;
       const localDate = new Date(selectedDate.getTime() - utc8Offset);
+
       const start = new Date(
         Date.UTC(
           localDate.getUTCFullYear(),
@@ -229,104 +229,64 @@ export const getAllAppointments = catchAsync(
           999,
         ),
       );
-      match.schedule = { $gte: start, $lt: end };
+
+      filter.schedule = { $gte: start, $lt: end };
     }
 
-    // Services filter
+    // Service filter (can be multi)
     if (service) {
       const serviceArray = Array.isArray(service)
         ? service
         : (service as string).split(",");
-      match.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = { $in: serviceArray };
     }
 
-    // Build search conditions
+    // Build search filters for patientName, doctorName, or generic search
     const searchConditions: any[] = [];
 
     if (patientName) {
-      const regex = new RegExp(patientName as string, "i");
-      searchConditions.push(
-        { "patient.firstname": regex },
-        { "patient.surname": regex },
-      );
+      searchConditions.push({
+        "patientId.firstname": { $regex: patientName as string, $options: "i" },
+      });
+      searchConditions.push({
+        "patientId.surname": { $regex: patientName as string, $options: "i" },
+      });
     }
 
     if (doctorName) {
-      const regex = new RegExp(doctorName as string, "i");
-      searchConditions.push({ "doctor.name": regex });
+      searchConditions.push({
+        "doctorId.name": { $regex: doctorName as string, $options: "i" },
+      });
     }
 
     if (search) {
       const regex = new RegExp(search as string, "i");
       searchConditions.push(
-        { "patient.firstname": regex },
-        { "patient.surname": regex },
-        { "doctor.name": regex },
+        { "patientId.firstname": regex },
+        { "patientId.surname": regex },
+        { "doctorId.name": regex },
         { medicalDepartment: regex },
       );
     }
 
-    if (searchConditions.length > 0) match.$or = searchConditions;
+    if (searchConditions.length > 0) {
+      filter.$or = searchConditions;
+    }
 
-    // Aggregation pipeline
-    const pipeline: PipelineStage[] = [
-      { $match: match } as PipelineStage,
-      {
-        $lookup: {
-          from: "patients",
-          localField: "patientId",
-          foreignField: "_id",
-          as: "patient",
-        },
-      } as PipelineStage,
-      { $unwind: "$patient" } as PipelineStage,
-      {
-        $lookup: {
-          from: "doctors",
-          localField: "doctorId",
-          foreignField: "_id",
-          as: "doctor",
-        },
-      } as PipelineStage,
-      {
-        $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true },
-      } as PipelineStage,
-      { $sort: { schedule: -1 } } as PipelineStage,
-      { $skip: skip } as PipelineStage,
-      { $limit: limit } as PipelineStage,
-    ];
+    // Fetch appointments with filters applied in MongoDB
+    const appointmentsPromise = Appointment.find(filter)
+      .sort({ schedule: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("patientId", "firstname surname")
+      .populate("doctorId", "name");
 
-    const countPipeline: PipelineStage[] = [
-      { $match: match } as PipelineStage,
-      {
-        $lookup: {
-          from: "patients",
-          localField: "patientId",
-          foreignField: "_id",
-          as: "patient",
-        },
-      } as PipelineStage,
-      { $unwind: "$patient" } as PipelineStage,
-      {
-        $lookup: {
-          from: "doctors",
-          localField: "doctorId",
-          foreignField: "_id",
-          as: "doctor",
-        },
-      } as PipelineStage,
-      {
-        $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true },
-      } as PipelineStage,
-      { $count: "total" } as PipelineStage,
-    ];
+    const totalPromise = Appointment.countDocuments(filter);
 
-    const [appointments, totalCountResult] = await Promise.all([
-      Appointment.aggregate(pipeline),
-      Appointment.aggregate(countPipeline),
+    const [appointments, total] = await Promise.all([
+      appointmentsPromise,
+      totalPromise,
     ]);
-
-    const total = totalCountResult[0]?.total || 0;
 
     res.status(200).json({
       status: "Success",
