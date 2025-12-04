@@ -47,7 +47,7 @@ const AppointmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  isDeleted: {
+  isArchived: {
     type: Boolean,
     default: false,
   },
