@@ -57,9 +57,37 @@ export const getAdmins = catchAsync(
 
 export const getPatients = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const patients = await User.find({ role: "user" });
+    const { gender, maritalStatus, search } = req.query;
 
-    res.status(200).json({ status: "success", data: patients });
+    const filter: any = { role: "user" };
+
+    if (gender) filter.gender = gender;
+    if (maritalStatus) filter.maritalStatus = maritalStatus;
+    if (search) {
+      const regex = new RegExp(search as string, "i");
+
+      filter.$or = [
+        { firstname: { $regex: regex } },
+        { surname: { $regex: regex } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ["$firstname", " ", "$surname"] },
+              regex: search,
+              options: "i",
+            },
+          },
+        },
+      ];
+    }
+
+    const patients = await User.find(filter).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: "success",
+      results: patients.length,
+      data: patients,
+    });
   },
 );
 
