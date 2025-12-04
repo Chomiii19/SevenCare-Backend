@@ -189,7 +189,8 @@ export const getTodayApprovedAppointments = catchAsync(
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { status, date, service, patientName, doctorName } = req.query;
+    const { status, date, service, patientName, doctorName, search } =
+      req.query;
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 15;
@@ -197,8 +198,10 @@ export const getAllAppointments = catchAsync(
 
     const filter: any = { isDeleted: false };
 
+    // Status filter
     if (status) filter.status = status;
 
+    // Date filter
     if (date) {
       const selectedDate = new Date(date as string);
       const utc8Offset = 8 * 60 * 60 * 1000;
@@ -230,43 +233,60 @@ export const getAllAppointments = catchAsync(
       filter.schedule = { $gte: start, $lt: end };
     }
 
+    // Service filter (can be multi)
     if (service) {
-      const serviceArray = Array.isArray(service) ? service : [service];
+      const serviceArray = Array.isArray(service)
+        ? service
+        : (service as string).split(",");
       filter.medicalDepartment = { $in: serviceArray };
     }
 
-    // Fetch appointments with patient populated
-    let appointments = await Appointment.find(filter)
+    // Build search filters for patientName, doctorName, or generic search
+    const searchConditions: any[] = [];
+
+    if (patientName) {
+      searchConditions.push({
+        "patientId.firstname": { $regex: patientName as string, $options: "i" },
+      });
+      searchConditions.push({
+        "patientId.surname": { $regex: patientName as string, $options: "i" },
+      });
+    }
+
+    if (doctorName) {
+      searchConditions.push({
+        "doctorId.name": { $regex: doctorName as string, $options: "i" },
+      });
+    }
+
+    if (search) {
+      const regex = new RegExp(search as string, "i");
+      searchConditions.push(
+        { "patientId.firstname": regex },
+        { "patientId.surname": regex },
+        { "doctorId.name": regex },
+        { medicalDepartment: regex },
+      );
+    }
+
+    if (searchConditions.length > 0) {
+      filter.$or = searchConditions;
+    }
+
+    // Fetch appointments with filters applied in MongoDB
+    const appointmentsPromise = Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
       .limit(limit)
       .populate("patientId", "firstname surname")
       .populate("doctorId", "name");
 
-    let total = await Appointment.countDocuments(filter);
+    const totalPromise = Appointment.countDocuments(filter);
 
-    // Apply patientName filter if present
-    if (patientName) {
-      const regex = new RegExp(patientName as string, "i");
-      appointments = appointments.filter((appt) => {
-        const patient = appt.patientId as unknown as {
-          firstname: string;
-          surname: string;
-        };
-        const fullName = `${patient.firstname} ${patient.surname}`;
-        return regex.test(fullName);
-      });
-      total = appointments.length; // update total for filtered results
-    }
-
-    if (doctorName) {
-      const regex = new RegExp(doctorName as string, "i");
-      appointments = appointments.filter((appt) => {
-        const d = appt.doctorId as any;
-        return d && regex.test(d.name);
-      });
-      total = appointments.length;
-    }
+    const [appointments, total] = await Promise.all([
+      appointmentsPromise,
+      totalPromise,
+    ]);
 
     res.status(200).json({
       status: "Success",
