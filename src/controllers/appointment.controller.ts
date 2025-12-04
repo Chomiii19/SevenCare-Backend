@@ -196,10 +196,10 @@ export const getAllAppointments = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const filter: any = { isDeleted: false };
+    const matchStage: any = { isDeleted: false };
 
     // Status filter
-    if (status) filter.status = status;
+    if (status) matchStage.status = status;
 
     // Date filter
     if (date) {
@@ -230,7 +230,7 @@ export const getAllAppointments = catchAsync(
         ),
       );
 
-      filter.schedule = { $gte: start, $lt: end };
+      matchStage.schedule = { $gte: start, $lt: end };
     }
 
     // Service filter (can be multi)
@@ -238,55 +238,80 @@ export const getAllAppointments = catchAsync(
       const serviceArray = Array.isArray(service)
         ? service
         : (service as string).split(",");
-      filter.medicalDepartment = { $in: serviceArray };
+      matchStage.medicalDepartment = { $in: serviceArray };
     }
 
-    // Build search filters for patientName, doctorName, or generic search
+    // Aggregation pipeline
+    const pipeline: any[] = [{ $match: matchStage }];
+
+    // Lookup patient
+    pipeline.push({
+      $lookup: {
+        from: "patients",
+        localField: "patientId",
+        foreignField: "_id",
+        as: "patient",
+      },
+    });
+    pipeline.push({ $unwind: "$patient" });
+
+    // Lookup doctor
+    pipeline.push({
+      $lookup: {
+        from: "doctors",
+        localField: "doctorId",
+        foreignField: "_id",
+        as: "doctor",
+      },
+    });
+    pipeline.push({
+      $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true },
+    });
+
+    // Build search conditions
     const searchConditions: any[] = [];
 
     if (patientName) {
       searchConditions.push({
-        "patientId.firstname": { $regex: patientName as string, $options: "i" },
+        "patient.firstname": { $regex: patientName as string, $options: "i" },
       });
       searchConditions.push({
-        "patientId.surname": { $regex: patientName as string, $options: "i" },
+        "patient.surname": { $regex: patientName as string, $options: "i" },
       });
     }
 
     if (doctorName) {
       searchConditions.push({
-        "doctorId.name": { $regex: doctorName as string, $options: "i" },
+        "doctor.name": { $regex: doctorName as string, $options: "i" },
       });
     }
 
     if (search) {
       const regex = new RegExp(search as string, "i");
       searchConditions.push(
-        { "patientId.firstname": regex },
-        { "patientId.surname": regex },
-        { "doctorId.name": regex },
+        { "patient.firstname": regex },
+        { "patient.surname": regex },
+        { "doctor.name": regex },
         { medicalDepartment: regex },
       );
     }
 
     if (searchConditions.length > 0) {
-      filter.$or = searchConditions;
+      pipeline.push({ $match: { $or: searchConditions } });
     }
 
-    // Fetch appointments with filters applied in MongoDB
-    const appointmentsPromise = Appointment.find(filter)
-      .sort({ schedule: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("patientId", "firstname surname")
-      .populate("doctorId", "name");
+    // Count total after filtering
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const totalResult = await Appointment.aggregate(countPipeline);
+    const total = totalResult[0]?.total || 0;
 
-    const totalPromise = Appointment.countDocuments(filter);
+    // Pagination & sort
+    pipeline.push({ $sort: { schedule: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
 
-    const [appointments, total] = await Promise.all([
-      appointmentsPromise,
-      totalPromise,
-    ]);
+    // Execute aggregation
+    const appointments = await Appointment.aggregate(pipeline);
 
     res.status(200).json({
       status: "Success",
