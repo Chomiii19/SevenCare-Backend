@@ -189,107 +189,145 @@ export const getTodayApprovedAppointments = catchAsync(
 
 export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { status, date, service, patientName, doctorName, search } =
-      req.query;
+    export const getAllAppointments = catchAsync(
+      async (req: Request, res: Response, next: NextFunction) => {
+        const { status, date, service, patientName, doctorName, search } =
+          req.query;
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 15;
-    const skip = (page - 1) * limit;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 15;
+        const skip = (page - 1) * limit;
 
-    const filter: any = { isDeleted: false };
+        const match: any = { isDeleted: false };
 
-    // Status filter
-    if (status) filter.status = status;
+        if (status) match.status = status;
 
-    // Date filter
-    if (date) {
-      const selectedDate = new Date(date as string);
-      const utc8Offset = 8 * 60 * 60 * 1000;
-      const localDate = new Date(selectedDate.getTime() - utc8Offset);
+        if (date) {
+          const selectedDate = new Date(date as string);
+          const utc8Offset = 8 * 60 * 60 * 1000;
+          const localDate = new Date(selectedDate.getTime() - utc8Offset);
 
-      const start = new Date(
-        Date.UTC(
-          localDate.getUTCFullYear(),
-          localDate.getUTCMonth(),
-          localDate.getUTCDate(),
-          0,
-          0,
-          0,
-          0,
-        ),
-      );
-      const end = new Date(
-        Date.UTC(
-          localDate.getUTCFullYear(),
-          localDate.getUTCMonth(),
-          localDate.getUTCDate(),
-          23,
-          59,
-          59,
-          999,
-        ),
-      );
+          const start = new Date(
+            Date.UTC(
+              localDate.getUTCFullYear(),
+              localDate.getUTCMonth(),
+              localDate.getUTCDate(),
+              0,
+              0,
+              0,
+              0,
+            ),
+          );
+          const end = new Date(
+            Date.UTC(
+              localDate.getUTCFullYear(),
+              localDate.getUTCMonth(),
+              localDate.getUTCDate(),
+              23,
+              59,
+              59,
+              999,
+            ),
+          );
 
-      filter.schedule = { $gte: start, $lt: end };
-    }
+          match.schedule = { $gte: start, $lt: end };
+        }
 
-    // Service filter (can be multi)
-    if (service) {
-      const serviceArray = Array.isArray(service)
-        ? service
-        : (service as string).split(",");
-      filter.medicalDepartment = { $in: serviceArray };
-    }
+        if (service) {
+          const serviceArray = Array.isArray(service)
+            ? service
+            : (service as string).split(",");
+          match.medicalDepartment = { $in: serviceArray };
+        }
 
-    // Build search filters
-    const patientMatch: any = {};
-    const doctorMatch: any = {};
+        const searchConditions: any[] = [];
 
-    if (patientName || search) {
-      const regex = patientName
-        ? new RegExp(patientName as string, "i")
-        : new RegExp(search as string, "i");
-      patientMatch.$or = [{ firstname: regex }, { surname: regex }];
-    }
+        if (patientName) {
+          const regex = new RegExp(patientName as string, "i");
+          searchConditions.push({ "patient.firstname": regex });
+          searchConditions.push({ "patient.surname": regex });
+        }
 
-    if (doctorName || search) {
-      const regex = doctorName
-        ? new RegExp(doctorName as string, "i")
-        : new RegExp(search as string, "i");
-      doctorMatch.name = regex;
-    }
+        if (doctorName) {
+          const regex = new RegExp(doctorName as string, "i");
+          searchConditions.push({ "doctor.name": regex });
+        }
 
-    // Fetch appointments
-    const appointmentsPromise = Appointment.find(filter)
-      .sort({ schedule: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate({
-        path: "patientId",
-        match: patientMatch,
-        select: "firstname surname",
-      })
-      .populate({ path: "doctorId", match: doctorMatch, select: "name" });
+        if (search) {
+          const regex = new RegExp(search as string, "i");
+          searchConditions.push({ "patient.firstname": regex });
+          searchConditions.push({ "patient.surname": regex });
+          searchConditions.push({ "doctor.name": regex });
+          searchConditions.push({ medicalDepartment: regex });
+        }
 
-    const totalPromise = Appointment.countDocuments(filter);
+        if (searchConditions.length > 0) match.$or = searchConditions;
 
-    let [appointments, total] = await Promise.all([
-      appointmentsPromise,
-      totalPromise,
-    ]);
+        // Aggregation pipeline
+        const pipeline = [
+          { $match: match },
+          {
+            $lookup: {
+              from: "patients", // your patients collection name
+              localField: "patientId",
+              foreignField: "_id",
+              as: "patient",
+            },
+          },
+          { $unwind: "$patient" },
+          {
+            $lookup: {
+              from: "doctors", // your doctors collection name
+              localField: "doctorId",
+              foreignField: "_id",
+              as: "doctor",
+            },
+          },
+          { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
+          { $sort: { schedule: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+        ];
 
-    // Remove appointments where populate failed due to search filter
-    appointments = appointments.filter((appt) => appt.patientId);
+        const [appointments, totalCountResult] = await Promise.all([
+          Appointment.aggregate(pipeline),
+          Appointment.aggregate([
+            { $match: match },
+            {
+              $lookup: {
+                from: "patients",
+                localField: "patientId",
+                foreignField: "_id",
+                as: "patient",
+              },
+            },
+            { $unwind: "$patient" },
+            {
+              $lookup: {
+                from: "doctors",
+                localField: "doctorId",
+                foreignField: "_id",
+                as: "doctor",
+              },
+            },
+            { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
+            { $count: "total" },
+          ]),
+        ]);
 
-    res.status(200).json({
-      status: "Success",
-      results: appointments.length,
-      total,
-      currentPage: page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-      data: normalizeAppointments(appointments),
-    });
+        const total = totalCountResult[0]?.total || 0;
+
+        res.status(200).json({
+          status: "Success",
+          results: appointments.length,
+          total,
+          currentPage: page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          data: normalizeAppointments(appointments),
+        });
+      },
+    );
   },
 );
 
