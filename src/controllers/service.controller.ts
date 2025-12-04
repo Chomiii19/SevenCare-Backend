@@ -19,9 +19,38 @@ export const createService = catchAsync(
   },
 );
 
-export const getServices = catchAsync(async (_req: Request, res: Response) => {
-  const services = await Service.find();
-  res.status(200).json({ status: "success", data: services });
+export const getServices = catchAsync(async (req: Request, res: Response) => {
+  const { status, search } = req.query;
+
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 15;
+  const skip = (page - 1) * limit;
+
+  const filter: any = {};
+
+  if (status) filter.status = status;
+
+  if (search) {
+    const regex = new RegExp(search as string, "i");
+    filter.$or = [{ name: { $regex: regex } }];
+  }
+
+  const total = await Service.countDocuments(filter);
+
+  const services = await Service.find(filter)
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: "success",
+    total,
+    results: services.length,
+    currentPage: page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    data: services,
+  });
 });
 
 export const getService = catchAsync(
