@@ -55,7 +55,7 @@ export const getAdmins = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const filter: any = { role: "user" };
+    const filter: any = { role: "admin" };
 
     if (gender) filter.gender = gender;
     if (search) {
