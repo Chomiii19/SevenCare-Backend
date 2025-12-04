@@ -130,7 +130,6 @@ export const getAllPendingAppointments = catchAsync(
 export const getTodayApprovedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
-
     const utc8Offset = 8 * 60 * 60 * 1000;
     const localNow = new Date(now.getTime() + utc8Offset);
 
@@ -158,29 +157,61 @@ export const getTodayApprovedAppointments = catchAsync(
     );
 
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const filter = {
+    const { status, service, patientName, doctorName } = req.query;
+
+    const filter: any = {
       isArchived: false,
       status: "Approved",
       schedule: { $gte: startOfDayLocal, $lte: endOfDayLocal },
     };
 
-    const [appointments, total] = await Promise.all([
-      Appointment.find(filter)
-        .sort({ schedule: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("patientId", "firstname surname"),
-      Appointment.countDocuments(filter),
-    ]);
+    if (status) filter.status = status;
+
+    if (service) {
+      const serviceArray = Array.isArray(service) ? service : [service];
+      filter.medicalDepartment = { $in: serviceArray };
+    }
+
+    // Fetch appointments with patient and doctor populated
+    let appointments = await Appointment.find(filter)
+      .sort({ schedule: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("patientId", "firstname surname")
+      .populate("doctorId", "name");
+
+    let total = await Appointment.countDocuments(filter);
+
+    // Apply patientName filter
+    if (patientName) {
+      const regex = new RegExp(patientName as string, "i");
+      appointments = appointments.filter((appt) => {
+        const patient = appt.patientId as any;
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
+      });
+      total = appointments.length;
+    }
+
+    // Apply doctorName filter
+    if (doctorName) {
+      const regex = new RegExp(doctorName as string, "i");
+      appointments = appointments.filter((appt) => {
+        const doctor = appt.doctorId as any;
+        return doctor && regex.test(doctor.name);
+      });
+      total = appointments.length;
+    }
 
     res.status(200).json({
       status: "Success",
       results: appointments.length,
       total,
       currentPage: page,
+      limit,
       totalPages: Math.ceil(total / limit),
       data: normalizeAppointments(appointments),
     });
