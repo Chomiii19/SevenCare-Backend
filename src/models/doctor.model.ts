@@ -15,6 +15,10 @@ const DoctorSchema = new mongoose.Schema<IDoctors>({
     type: Date,
     required: [true, "Date can't be empty"],
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const Doctor = mongoose.model("doctor", DoctorSchema);

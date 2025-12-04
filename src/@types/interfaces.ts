@@ -39,4 +39,5 @@ export interface IDoctors {
   name: string;
   specialization: string;
   schedule: Date;
+  createdAt: Date;
 }
