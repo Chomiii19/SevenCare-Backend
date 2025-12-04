@@ -191,6 +191,11 @@ export const getAllAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { status, date, service, patientName, doctorName } = req.query;
 
+    await Appointment.updateMany(
+      { isArchived: { $exists: false } }, // only documents without the field
+      { $set: { isArchived: false } },
+    );
+
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
