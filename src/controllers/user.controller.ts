@@ -49,9 +49,49 @@ export const createAdmin = catchAsync(
 
 export const getAdmins = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const admins = await User.find({ role: "admin" });
+    const { gender, search } = req.query;
 
-    res.status(200).json({ status: "success", data: admins });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 15;
+    const skip = (page - 1) * limit;
+
+    const filter: any = { role: "user" };
+
+    if (gender) filter.gender = gender;
+    if (search) {
+      const regex = new RegExp(search as string, "i");
+
+      filter.$or = [
+        { firstname: { $regex: regex } },
+        { surname: { $regex: regex } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ["$firstname", " ", "$surname"] },
+              regex: search,
+              options: "i",
+            },
+          },
+        },
+      ];
+    }
+
+    const total = await User.countDocuments(filter);
+
+    const patients = await User.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: "success",
+      total,
+      results: patients.length,
+      currentPage: page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: patients,
+    });
   },
 );
 
