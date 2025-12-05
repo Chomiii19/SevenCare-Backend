@@ -19,7 +19,7 @@ app.use(
       "https://seven-care-user-frontend.vercel.app",
       "https://sevencare-admin.vercel.app",
       "http://localhost:5173",
-      "https://omdlstaging.vercel.app",
+      "https://omdl-admin-staging.vercel.app",
     ],
     credentials: true,
   }),
