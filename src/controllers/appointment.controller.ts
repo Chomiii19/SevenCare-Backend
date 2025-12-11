@@ -819,7 +819,6 @@ export const getTodayAppointmentSummary = catchAsync(
     );
 
     const filter = {
-      isArchived: false,
       schedule: { $gte: startOfDayLocal, $lte: endOfDayLocal },
       status: { $in: ["Completed", "Approved", "Cancelled"] },
     };
