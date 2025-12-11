@@ -33,7 +33,7 @@ export const uploadMedicalRecord = catchAsync(
 
     const fileUrl = supabase.storage
       .from("medical-records")
-      .getPublicUrl(req.file.filename).data.publicUrl;
+      .getPublicUrl(fileName).data.publicUrl;
 
     const medicalRecord = await MedicalRecord.create({
       appointmentId,
