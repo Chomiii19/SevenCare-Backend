@@ -109,18 +109,30 @@ export const updateMedicalRecord = catchAsync(
 
 export const deleteMedicalRecord = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const record = await MedicalRecord.findById(req.params.id);
+    const { appointmentId, recordId } = req.params;
+
+    if (!appointmentId || !recordId)
+      return next(new AppError("Missing appointmentId or recordId", 400));
+
+    const appointment = await Appointment.findById(appointmentId).populate<{
+      medicalRecord?: {
+        _id: string;
+        driveId: string;
+        filename: string;
+      };
+    }>("medicalRecord");
+
+    if (!appointment) return next(new AppError("Appointment not found", 404));
+
+    const record = appointment.medicalRecord;
     if (!record) return next(new AppError("Medical record not found", 404));
 
     await deleteFromSupabase(record.driveId);
 
-    if (record.appointmentId) {
-      await Appointment.findByIdAndUpdate(record.appointmentId, {
-        $unset: { medicalRecord: null },
-      });
-    }
+    appointment.medicalRecord = undefined;
+    await appointment.save();
 
-    await record.deleteOne();
+    await MedicalRecord.findByIdAndDelete(record._id);
 
     res.status(204).json({ status: "success", data: null });
   },

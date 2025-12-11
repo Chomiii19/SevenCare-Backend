@@ -8,6 +8,6 @@ import {
 const router = express.Router();
 
 router.post("/upload", upload.single("file"), uploadMedicalRecord);
-router.delete("/:id", deleteMedicalRecord);
+router.delete("/:recordId/appointments/:appointmentId", deleteMedicalRecord);
 
 export default router;
