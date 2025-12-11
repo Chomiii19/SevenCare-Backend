@@ -89,7 +89,8 @@ export const getAppointments = catchAsync(
       .skip(skip)
       .limit(limit)
       .populate("patientId", "firstname surname")
-      .populate("doctorId", "name");
+      .populate("doctorId", "name")
+      .populate("medicalRecord", "fileUrl filename");
 
     let total = await Appointment.countDocuments(filter);
 
@@ -250,7 +251,8 @@ export const getTodayApprovedAppointments = catchAsync(
       .skip(skip)
       .limit(limit)
       .populate("patientId", "_id firstname surname")
-      .populate("doctorId", "name");
+      .populate("doctorId", "name")
+      .populate("medicalRecord", "fileUrl filename");
 
     let total = await Appointment.countDocuments(filter);
 
@@ -365,7 +367,8 @@ export const getAllAppointments = catchAsync(
       .skip(skip)
       .limit(limit)
       .populate("patientId", "_id firstname surname")
-      .populate("doctorId", "name");
+      .populate("doctorId", "name")
+      .populate("medicalRecord", "fileUrl filename");
 
     let total = await Appointment.countDocuments(filter);
 
@@ -639,7 +642,8 @@ export const getArchivedAppointments = catchAsync(
       .skip(skip)
       .limit(limit)
       .populate("patientId", "_id firstname surname")
-      .populate("doctorId", "name");
+      .populate("doctorId", "name")
+      .populate("medicalRecord", "fileUrl filename");
 
     let total = await Appointment.countDocuments(filter);
 

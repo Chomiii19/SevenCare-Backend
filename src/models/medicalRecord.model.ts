@@ -2,7 +2,6 @@ import mongoose, { Schema } from "mongoose";
 import { IMedicalRecord } from "../@types/interfaces";
 
 const MedicalRecordSchema = new mongoose.Schema<IMedicalRecord>({
-  appointmentId: { type: Schema.Types.ObjectId, ref: "appointment" },
   filename: { type: String, required: true },
   originalName: { type: String, required: true },
   driveId: { type: String, required: true },

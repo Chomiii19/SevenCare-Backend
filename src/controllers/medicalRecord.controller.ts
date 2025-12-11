@@ -6,6 +6,7 @@ import catchAsync from "../utils/catchAsync";
 import multer from "multer";
 import path from "path";
 import { supabase } from "../configs/supabaseClient";
+import Appointment from "../models/appointment.model";
 
 const storage = multer.memoryStorage();
 export const upload = multer({ storage });
@@ -41,6 +42,10 @@ export const uploadMedicalRecord = catchAsync(
       originalName: file.originalname,
       driveId: data.path,
       fileUrl,
+    });
+
+    await Appointment.findByIdAndUpdate(appointmentId, {
+      medicalRecord: medicalRecord._id,
     });
 
     res.status(200).json({
