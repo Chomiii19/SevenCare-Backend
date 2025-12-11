@@ -109,10 +109,18 @@ export const updateMedicalRecord = catchAsync(
 
 export const deleteMedicalRecord = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const record = await MedicalRecord.findByIdAndDelete(req.params.id);
+    const record = await MedicalRecord.findById(req.params.id);
     if (!record) return next(new AppError("Medical record not found", 404));
 
     await deleteFromSupabase(record.driveId);
+
+    if (record.appointmentId) {
+      await Appointment.findByIdAndUpdate(record.appointmentId, {
+        $unset: { medicalRecord: null },
+      });
+    }
+
+    await record.deleteOne();
 
     res.status(204).json({ status: "success", data: null });
   },
