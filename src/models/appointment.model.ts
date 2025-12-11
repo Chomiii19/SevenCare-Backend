@@ -25,6 +25,7 @@ const AppointmentSchema = new mongoose.Schema({
   medicalRecord: {
     type: Schema.Types.ObjectId,
     ref: "medicalrecord",
+    default: null,
   },
   email: {
     type: String,
