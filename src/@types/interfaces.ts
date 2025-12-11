@@ -56,5 +56,6 @@ export interface IMedicalRecord extends Document {
   filename: string;
   driveId: string;
   originalName: string;
+  fileUrl: string;
   uploadedAt: Date;
 }

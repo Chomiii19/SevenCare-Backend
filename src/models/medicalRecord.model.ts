@@ -6,6 +6,7 @@ const MedicalRecordSchema = new mongoose.Schema<IMedicalRecord>({
   filename: { type: String, required: true },
   originalName: { type: String, required: true },
   driveId: { type: String, required: true },
+  fileUrl: { type: String, required: true },
   uploadedAt: { type: Date, default: Date.now },
 });
 
