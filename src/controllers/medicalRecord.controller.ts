@@ -5,7 +5,6 @@ import AppError from "../utils/appError";
 import catchAsync from "../utils/catchAsync";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import { supabase } from "../configs/supabaseClient";
 
 const storage = multer.memoryStorage();
@@ -17,33 +16,32 @@ export const uploadMedicalRecord = catchAsync(
     if (!appointmentId) return next(new AppError("Missing appointmentId", 400));
     if (!req.file) return next(new AppError("No file uploaded", 400));
 
-    // Upload file to Supabase bucket
-    const filePathInBucket = `medical-records/${Date.now()}-${
-      req.file.originalname
-    }`;
-    const fileStream = fs.createReadStream(req.file.path);
+    const file = req.file;
+    const fileExt = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${file.originalname}`;
 
+    // upload to Supabase Storage
     const { data, error } = await supabase.storage
-      .from("medical-records")
-      .upload(filePathInBucket, fileStream);
+      .from("medical-records") // your bucket name
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
 
-    if (error) return next(new AppError("Failed to upload file", 500));
+    if (error)
+      return next(new AppError(`Upload failed: ${error.message}`, 500));
 
-    // Get public URL
     const fileUrl = supabase.storage
       .from("medical-records")
-      .getPublicUrl(filePathInBucket).data.publicUrl;
+      .getPublicUrl(req.file.filename).data.publicUrl;
 
-    // Save to DB
     const medicalRecord = await MedicalRecord.create({
       appointmentId,
-      filename: req.file.filename,
-      originalName: req.file.originalname,
+      filename: fileName,
+      originalName: file.originalname,
+      driveId: data.path,
       fileUrl,
     });
-
-    // Optionally delete local file
-    fs.unlinkSync(req.file.path);
 
     res.status(200).json({
       status: "success",
