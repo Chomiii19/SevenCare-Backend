@@ -36,7 +36,7 @@ app.use("/api/v1/appointments", protect, appointmentRoutes);
 app.use("/api/v1/doctors", protect, doctorRoutes);
 app.use("/api/v1/services", protect, serviceRoutes);
 app.use("/api/v1/schedules", protect, scheduleRoutes);
-app.use("/api/v1/medical-record", protect, medicalRecordRoutes);
+app.use("/api/v1/medical-records", protect, medicalRecordRoutes);
 app.use("/{*splat}", (req: Request, res: Response, next: NextFunction) =>
   next(new AppError(`Can't find ${req.originalUrl} from the server.`, 404)),
 );
