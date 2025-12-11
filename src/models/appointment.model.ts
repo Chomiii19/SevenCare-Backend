@@ -24,7 +24,7 @@ const AppointmentSchema = new mongoose.Schema({
   },
   medicalRecord: {
     type: Schema.Types.ObjectId,
-    ref: "medicalRecord",
+    ref: "medicalrecord",
   },
   email: {
     type: String,
