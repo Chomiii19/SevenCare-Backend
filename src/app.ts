@@ -23,6 +23,7 @@ app.use(
       "http://localhost:5173",
       "https://omdl-admin-staging.vercel.app",
       "https://omdl-patient-staging.vercel.app",
+      "https://www.olympmedlab.com",
     ],
     credentials: true,
   }),
