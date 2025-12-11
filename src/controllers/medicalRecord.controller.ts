@@ -31,11 +31,16 @@ export const uploadMedicalRecord = catchAsync(
     if (error)
       return next(new AppError(`Upload failed: ${error.message}`, 500));
 
+    const fileUrl = supabase.storage
+      .from("medical-records")
+      .getPublicUrl(req.file.filename).data.publicUrl;
+
     const medicalRecord = await MedicalRecord.create({
       appointmentId,
       filename: fileName,
       originalName: file.originalname,
       driveId: data.path,
+      fileUrl,
     });
 
     res.status(200).json({
