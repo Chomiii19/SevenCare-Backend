@@ -3,6 +3,12 @@ import { uploadToSupabase, deleteFromSupabase } from "../utils/drive";
 import MedicalRecord from "../models/medicalRecord.model";
 import AppError from "../utils/appError";
 import catchAsync from "../utils/catchAsync";
+import multer from "multer";
+import path from "path";
+import { supabase } from "../configs/supabaseClient";
+
+const storage = multer.memoryStorage();
+export const upload = multer({ storage });
 
 export const uploadMedicalRecord = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -10,14 +16,26 @@ export const uploadMedicalRecord = catchAsync(
     if (!appointmentId) return next(new AppError("Missing appointmentId", 400));
     if (!req.file) return next(new AppError("No file uploaded", 400));
 
-    const { path, url } = await uploadToSupabase(req.file);
+    const file = req.file;
+    const fileExt = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${file.originalname}`;
+
+    // upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from("medical-records") // your bucket name
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
+
+    if (error)
+      return next(new AppError(`Upload failed: ${error.message}`, 500));
 
     const medicalRecord = await MedicalRecord.create({
       appointmentId,
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      driveId: path, // Replace driveId = filePath
-      fileUrl: url, // Add public URL if you want
+      filename: fileName,
+      originalName: file.originalname,
+      driveId: data.path,
     });
 
     res.status(200).json({
