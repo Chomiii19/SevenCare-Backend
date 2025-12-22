@@ -9,6 +9,7 @@ import sendPasswordResetCode from "../utils/sendResetCodeEmail";
 const createSendToken = (
   res: Response,
   userId: Types.ObjectId,
+  role: string,
   statusCode: number,
 ) => {
   const token = signToken({ userId });
@@ -22,7 +23,9 @@ const createSendToken = (
   };
 
   res.cookie("authToken", token, cookieOption);
-  res.status(statusCode).json({ status: "Success" });
+  res
+    .status(statusCode)
+    .json({ status: "Success", user: { id: userId, role } });
 };
 
 export const signup = catchAsync(
@@ -71,7 +74,7 @@ export const signup = catchAsync(
       role,
     });
 
-    createSendToken(res, newUser._id, 201);
+    createSendToken(res, newUser._id, newUser.role, 201);
   },
 );
 
@@ -94,7 +97,7 @@ export const login = catchAsync(
       );
     }
 
-    createSendToken(res, user._id, 200);
+    createSendToken(res, user._id, user.role, 200);
   },
 );
 
