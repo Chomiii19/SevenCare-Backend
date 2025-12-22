@@ -80,7 +80,7 @@ export const signup = catchAsync(
 
 export const login = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
     const origin = req.headers.origin;
 
     if (!email || !password)
@@ -90,12 +90,6 @@ export const login = catchAsync(
 
     if (!user || !(await user?.comparePassword(password)))
       return next(new AppError("Incorrect user credentials", 400));
-
-    if (role !== user.role) {
-      return next(
-        new AppError("You are not authorized to access this site", 403),
-      );
-    }
 
     createSendToken(res, user._id, user.role, 200);
   },
