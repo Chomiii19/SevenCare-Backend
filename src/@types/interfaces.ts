@@ -37,7 +37,9 @@ export interface IServices {
 
 export interface IDoctors {
   _id: Types.ObjectId;
-  name: string;
+  firstname: string;
+  middlename: string;
+  surname: string;
   specialization: string;
   schedule: Date;
   createdAt: Date;

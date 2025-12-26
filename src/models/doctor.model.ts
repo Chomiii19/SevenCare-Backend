@@ -2,7 +2,17 @@ import mongoose from "mongoose";
 import { IDoctors } from "../@types/interfaces";
 
 const DoctorSchema = new mongoose.Schema<IDoctors>({
-  name: {
+  firstname: {
+    type: String,
+    required: [true, "Name can't be empty"],
+    unique: true,
+  },
+  middlename: {
+    type: String,
+    required: [true, "Name can't be empty"],
+    unique: true,
+  },
+  surname: {
     type: String,
     required: [true, "Name can't be empty"],
     unique: true,

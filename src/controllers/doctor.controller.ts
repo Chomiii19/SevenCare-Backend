@@ -5,13 +5,16 @@ import Doctor from "../models/doctor.model";
 
 export const createDoctor = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { name, specialization, schedule } = req.body;
+    const { firstname, middlename, surname, specialization, schedule } =
+      req.body;
 
-    if (!name || !specialization || !schedule)
+    if (!firstname || !middlename || !surname || !specialization || !schedule)
       return next(new AppError("All fields must be filled.", 400));
 
     await Doctor.create({
-      name,
+      firstname,
+      middlename,
+      surname,
       specialization,
       schedule: new Date(schedule),
     });
@@ -34,11 +37,34 @@ export const getDoctors = catchAsync(
     const filter: any = {};
 
     if (specialization) filter.specialization = specialization;
+
     if (search) {
       const regex = new RegExp(search as string, "i");
+
       filter.$or = [
-        { name: { $regex: regex } },
-        { specialization: { $regex: regex } },
+        { firstname: { $regex: regex } },
+        { middlename: { $regex: regex } },
+        { surname: { $regex: regex } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ["$firstname", " ", "$surname"] },
+              regex: search,
+              options: "i",
+            },
+          },
+        },
+        {
+          $expr: {
+            $regexMatch: {
+              input: {
+                $concat: ["$firstname", " ", "$middlename", " ", "$surname"],
+              },
+              regex: search,
+              options: "i",
+            },
+          },
+        },
       ];
     }
 
