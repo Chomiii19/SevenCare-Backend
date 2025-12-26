@@ -41,7 +41,6 @@ export interface IDoctors {
   middlename: string;
   surname: string;
   specialization: string;
-  schedule: Date;
   createdAt: Date;
 }
 export interface ISchedule {

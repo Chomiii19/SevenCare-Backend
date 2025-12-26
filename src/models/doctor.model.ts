@@ -21,10 +21,6 @@ const DoctorSchema = new mongoose.Schema<IDoctors>({
     type: String,
     required: [true, "Specialization can't be empty"],
   },
-  schedule: {
-    type: Date,
-    required: [true, "Date can't be empty"],
-  },
   createdAt: {
     type: Date,
     default: Date.now,

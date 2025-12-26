@@ -5,10 +5,9 @@ import Doctor from "../models/doctor.model";
 
 export const createDoctor = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { firstname, middlename, surname, specialization, schedule } =
-      req.body;
+    const { firstname, middlename, surname, specialization } = req.body;
 
-    if (!firstname || !middlename || !surname || !specialization || !schedule)
+    if (!firstname || !middlename || !surname || !specialization)
       return next(new AppError("All fields must be filled.", 400));
 
     await Doctor.create({
@@ -16,7 +15,6 @@ export const createDoctor = catchAsync(
       middlename,
       surname,
       specialization,
-      schedule: new Date(schedule),
     });
 
     res.status(201).json({
