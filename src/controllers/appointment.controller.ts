@@ -4,19 +4,23 @@ import catchAsync from "../utils/catchAsync";
 import AppError from "../utils/appError";
 import Doctor from "../models/doctor.model";
 import Schedule from "../models/schedule.model";
+import User from "../models/user.model";
 
 export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { medicalDepartment, schedule } = req.body;
+    const { medicalDepartment, schedule, email } = req.body;
 
     if (!medicalDepartment || !schedule)
       return next(new AppError("Invalid empty fields", 400));
+
+    let user;
+    if (email) user = await User.findOne({ email });
 
     if (isNaN(new Date(schedule).getTime()))
       return next(new AppError("Invalid date or time format", 400));
 
     const newAppointment = await Appointment.create({
-      email: req.user.email,
+      email: email ? user?.email : req.user.email,
       patientId: req.user._id,
       medicalDepartment,
       schedule,
