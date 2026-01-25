@@ -10,24 +10,41 @@ export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { medicalDepartment, schedule, email } = req.body;
 
-    if (!medicalDepartment || !schedule)
+    if (!medicalDepartment || !schedule) {
       return next(new AppError("Invalid empty fields", 400));
+    }
 
-    let user;
-    if (email) user = await User.findOne({ email });
-
-    if (isNaN(new Date(schedule).getTime()))
+    const appointmentDate = new Date(schedule);
+    if (isNaN(appointmentDate.getTime())) {
       return next(new AppError("Invalid date or time format", 400));
+    }
+
+    if (appointmentDate < new Date()) {
+      return next(new AppError("Schedule must be in the future", 400));
+    }
+
+    let patientEmail = req.user.email;
+    let patientId = req.user._id;
+
+    if (email) {
+      const user = await User.findOne({ email });
+      if (!user) {
+        return next(new AppError("User with this email does not exist", 404));
+      }
+
+      patientEmail = user.email;
+      patientId = user._id;
+    }
 
     const newAppointment = await Appointment.create({
-      email: email ? user?.email : req.user.email,
-      patientId: req.user._id,
+      email: patientEmail,
+      patientId,
       medicalDepartment,
-      schedule,
+      schedule: appointmentDate,
     });
 
     res.status(201).json({
-      status: "Success",
+      status: "success",
       data: normalizeAppointments([newAppointment])[0],
     });
   },
