@@ -44,6 +44,7 @@ router
 router.route("/create").post(appointmentController.createAppointment);
 router
   .route("/:id")
+  .get(appointmentController.getAppointmentById)
   .patch(appointmentController.editAppointment)
   .delete(appointmentController.deleteAppointment);
 router.route("/").get(appointmentController.getAppointments);

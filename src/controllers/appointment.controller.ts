@@ -218,6 +218,74 @@ export const getAllPendingAppointments = catchAsync(
   },
 );
 
+export const getAppointmentById = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    if (!id) {
+      return next(new AppError("Appointment ID is required", 400));
+    }
+
+    const appointment = await Appointment.findById(id)
+      .populate("patientId", "_id firstname surname email")
+      .populate("doctorId", "_id name specialization schedule")
+      .populate("medicalRecord", "_id fileUrl filename");
+
+    if (!appointment) {
+      return next(new AppError("Appointment not found", 404));
+    }
+
+    if (req.user?.role === "patient") {
+      // Type-safe patient ID extraction
+      let patientId: string;
+
+      if (appointment.patientId && typeof appointment.patientId === "object") {
+        patientId = (appointment.patientId as any)._id.toString();
+      } else {
+        patientId = String(appointment.patientId);
+      }
+
+      if (patientId !== req.user._id.toString()) {
+        return next(
+          new AppError(
+            "You don't have permission to view this appointment",
+            403,
+          ),
+        );
+      }
+    }
+
+    // Normalize the appointment data
+    const normalizedAppointment = normalizeSingleAppointment(appointment);
+
+    res.status(200).json({
+      status: "Success",
+      data: normalizedAppointment,
+    });
+  },
+);
+
+function normalizeSingleAppointment(appt: any) {
+  const obj = appt.toObject ? appt.toObject() : appt;
+
+  // Adjust schedule for UTC-8 offset
+  const date = new Date(obj.schedule);
+  date.setHours(date.getHours() - 8);
+  obj.schedule = date.toISOString();
+
+  // Add patientName if patientId is populated
+  if (obj.patientId && typeof obj.patientId === "object") {
+    obj.patientName = `${obj.patientId.firstname} ${obj.patientId.surname}`;
+  }
+
+  // Add doctorName if doctorId is populated
+  if (obj.doctorId && typeof obj.doctorId === "object") {
+    obj.doctorName = obj.doctorId.name;
+  }
+
+  return obj;
+}
+
 export const getTodayApprovedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
