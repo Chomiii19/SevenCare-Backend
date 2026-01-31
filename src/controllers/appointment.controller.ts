@@ -229,7 +229,8 @@ export const getAppointmentById = catchAsync(
     const appointment = await Appointment.findById(id)
       .populate("patientId", "_id firstname surname email")
       .populate("doctorId", "_id name specialization schedule")
-      .populate("medicalRecord", "_id fileUrl filename");
+      .populate("medicalRecord", "_id fileUrl filename")
+      .populate("medicalDepartment", "name price status");
 
     if (!appointment) {
       return next(new AppError("Appointment not found", 404));
