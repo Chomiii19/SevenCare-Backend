@@ -12,6 +12,7 @@ router.route("/admins").get(userController.getAdmins);
 router.route("/patients").get(userController.getPatients);
 router.route("/my-account").get(userController.myAccount);
 router.route("/update").patch(userController.updateAccount);
+router.patch("/users/:id/password", userController.changePassword);
 router
   .route("/:id")
   .get(userController.getAccount)

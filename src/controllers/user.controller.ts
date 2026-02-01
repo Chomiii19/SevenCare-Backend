@@ -367,3 +367,57 @@ export const getYearlyPatientCounts = catchAsync(
     });
   },
 );
+
+export const changePassword = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.params.id;
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate required fields
+    if (!currentPassword || !newPassword) {
+      return next(
+        new AppError("Current password and new password are required", 400),
+      );
+    }
+
+    // Validate new password length
+    if (newPassword.length < 6) {
+      return next(
+        new AppError("New password must be at least 6 characters long", 400),
+      );
+    }
+
+    // Find user by ID
+    const user = await User.findById(id).select("+password");
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    // Verify current password
+    const isPasswordCorrect = await user.comparePassword(currentPassword);
+
+    if (!isPasswordCorrect) {
+      return next(new AppError("Current password is incorrect", 401));
+    }
+
+    // Check if new password is same as current password
+    if (currentPassword === newPassword) {
+      return next(
+        new AppError(
+          "New password must be different from current password",
+          400,
+        ),
+      );
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      message: "Password updated successfully",
+    });
+  },
+);
