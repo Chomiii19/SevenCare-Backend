@@ -16,6 +16,7 @@ router.get(
   appointmentController.getYearlyCompletedAppointments,
 );
 
+router.get("/users/:id", appointmentController.getAppointmentsByUserId);
 router.get("/counts/today", appointmentController.getTodayAppointmentSummary);
 router.get("/counts/week", appointmentController.getWeeklyAppointmentCounts);
 router.get("/counts/month", appointmentController.getMonthlyAppointmentCounts);

@@ -1268,3 +1268,53 @@ export const getDoctorsForAppointment = catchAsync(
     });
   },
 );
+
+export const getAppointmentsByUserId = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    if (!id) {
+      return next(new AppError("User ID is required", 400));
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 15;
+    const skip = (page - 1) * limit;
+
+    const { status, service } = req.query;
+
+    const filter: any = { patientId: id };
+
+    if (status) filter.status = status;
+
+    if (service) {
+      const serviceArray = Array.isArray(service) ? service : [service];
+      filter.medicalDepartment = { $in: serviceArray };
+    }
+
+    const total = await Appointment.countDocuments(filter);
+
+    const appointments = await Appointment.find(filter)
+      .sort({ schedule: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("patientId", "_id firstname surname")
+      .populate("doctorId", "name")
+      .populate("medicalRecord", "_id fileUrl filename");
+
+    res.status(200).json({
+      status: "Success",
+      results: appointments.length,
+      total,
+      currentPage: page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: normalizeAppointments(appointments),
+    });
+  },
+);
