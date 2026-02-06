@@ -364,3 +364,50 @@ export const getTopAvailedServices = catchAsync(async (req, res) => {
     data: top,
   });
 });
+
+export const getServicePrices = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { names } = req.body;
+
+    // Validate that names is provided and is an array
+    if (!names || !Array.isArray(names)) {
+      return next(
+        new AppError("Please provide an array of service names", 400),
+      );
+    }
+
+    if (names.length === 0) {
+      return next(new AppError("Service names array cannot be empty", 400));
+    }
+
+    // Find all services matching the provided names
+    const services = await Service.find({
+      name: { $in: names },
+    }).select("name price");
+
+    // Create a price map object
+    const priceMap: { [key: string]: number } = {};
+
+    services.forEach((service) => {
+      priceMap[service.name] = service.price;
+    });
+
+    // Check if any requested services were not found
+    const foundNames = Object.keys(priceMap);
+    const notFound = names.filter((name) => !foundNames.includes(name));
+
+    if (notFound.length > 0) {
+      return res.status(200).json({
+        status: "success",
+        data: priceMap,
+        notFound: notFound,
+        message: `Some services were not found: ${notFound.join(", ")}`,
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: priceMap,
+    });
+  },
+);
