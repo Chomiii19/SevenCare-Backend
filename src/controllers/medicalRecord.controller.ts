@@ -137,21 +137,3 @@ export const deleteMedicalRecord = catchAsync(
     res.status(204).json({ status: "success", data: null });
   },
 );
-
-export const getAppointmentsWithMedicalRecord = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const appointments = await Appointment.find({
-      medicalRecord: { $ne: null },
-      isArchived: false,
-    })
-      .populate("patientId", "firstName lastName email")
-      .populate("doctorId", "name")
-      .populate("medicalRecord");
-
-    res.status(200).json({
-      status: "success",
-      results: appointments.length,
-      data: { appointments },
-    });
-  },
-);

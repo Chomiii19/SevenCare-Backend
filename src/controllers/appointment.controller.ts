@@ -515,6 +515,124 @@ export const getAllAppointments = catchAsync(
   },
 );
 
+export const getAppointmentsWithMedicalRecord = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { status, date, service, patientName, doctorName, search } =
+      req.query;
+
+    await Appointment.updateMany(
+      { isArchived: { $exists: false } }, // only documents without the field
+      { $set: { isArchived: false } },
+    );
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 15;
+    const skip = (page - 1) * limit;
+
+    const filter: any = { isArchived: false, medicalRecord: { $ne: null } };
+
+    if (status) filter.status = status;
+
+    if (date) {
+      const selectedDate = new Date(date as string);
+      const utc8Offset = 8 * 60 * 60 * 1000;
+      const localDate = new Date(selectedDate.getTime() - utc8Offset);
+
+      const start = new Date(
+        Date.UTC(
+          localDate.getUTCFullYear(),
+          localDate.getUTCMonth(),
+          localDate.getUTCDate(),
+          0,
+          0,
+          0,
+          0,
+        ),
+      );
+      const end = new Date(
+        Date.UTC(
+          localDate.getUTCFullYear(),
+          localDate.getUTCMonth(),
+          localDate.getUTCDate(),
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+
+      filter.schedule = { $gte: start, $lt: end };
+    }
+
+    if (service) {
+      const serviceArray = Array.isArray(service) ? service : [service];
+      filter.medicalDepartment = { $in: serviceArray };
+    }
+
+    // Fetch appointments with patient populated
+    let appointments = await Appointment.find(filter)
+      .sort({ schedule: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("patientId", "_id firstname surname")
+      .populate("doctorId", "name")
+      .populate("medicalRecord", "_id fileUrl filename");
+
+    let total = await Appointment.countDocuments(filter);
+
+    if (search) {
+      const regex = new RegExp(search as string, "i");
+
+      appointments = appointments.filter((appt) => {
+        const p = appt.patientId as any;
+        if (!p) return false;
+
+        const fullname = `${p.firstname} ${p.surname}`;
+        return (
+          regex.test(p.firstname) ||
+          regex.test(p.surname) ||
+          regex.test(fullname)
+        );
+      });
+
+      total = appointments.length;
+    }
+
+    // Apply patientName filter if present
+    if (patientName) {
+      const regex = new RegExp(patientName as string, "i");
+      appointments = appointments.filter((appt) => {
+        const patient = appt.patientId as unknown as {
+          firstname: string;
+          surname: string;
+        };
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
+      });
+      total = appointments.length; // update total for filtered results
+    }
+
+    if (doctorName) {
+      const regex = new RegExp(doctorName as string, "i");
+      appointments = appointments.filter((appt) => {
+        const d = appt.doctorId as any;
+        return d && regex.test(d.name);
+      });
+      total = appointments.length;
+    }
+
+    res.status(200).json({
+      status: "Success",
+      results: appointments.length,
+      total,
+      currentPage: page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: normalizeAppointments(appointments),
+    });
+  },
+);
+
 export const updateAppointmentStatus = async (req: Request, res: Response) => {
   try {
     const { id, action } = req.params;

@@ -15,7 +15,10 @@ router.get(
   "/completed/year",
   appointmentController.getYearlyCompletedAppointments,
 );
-
+router.get(
+  "/with-medical-record",
+  appointmentController.getAppointmentsWithMedicalRecord,
+);
 router.get("/users/:id", appointmentController.getAppointmentsByUserId);
 router.get("/counts/today", appointmentController.getTodayAppointmentSummary);
 router.get("/counts/week", appointmentController.getWeeklyAppointmentCounts);
