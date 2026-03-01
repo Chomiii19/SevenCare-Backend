@@ -1424,7 +1424,7 @@ export const getDoctorsForAppointment = catchAsync(
     const schedules = await Schedule.find({
       start: { $lte: appointmentTime },
       end: { $gte: appointmentTime },
-    }).populate("doctorId", "firstname surname specialization");
+    }).populate("doctorId", "firstname middlename surname specialization");
 
     const doctorsMap = new Map<string, any>();
     for (const sched of schedules) {
