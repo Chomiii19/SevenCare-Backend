@@ -768,19 +768,21 @@ function normalizeAppointments(appts: any[]) {
 export const updateAppointmentDoctor = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
-    const { doctorIds } = req.body; // now an array
+    const { doctorIds } = req.body;
 
-    if (!doctorIds || !Array.isArray(doctorIds) || doctorIds.length === 0)
+    if (!doctorIds || !Array.isArray(doctorIds))
       return next(new AppError("doctorIds array is required", 400));
 
-    // Verify all doctors exist
-    const doctors = await Doctor.find({ _id: { $in: doctorIds } });
-    if (doctors.length !== doctorIds.length)
-      return next(new AppError("One or more doctors not found", 404));
+    // Only validate doctors if array is not empty
+    if (doctorIds.length > 0) {
+      const doctors = await Doctor.find({ _id: { $in: doctorIds } });
+      if (doctors.length !== doctorIds.length)
+        return next(new AppError("One or more doctors not found", 404));
+    }
 
     const updated = await Appointment.findByIdAndUpdate(
       id,
-      { doctorId: doctorIds }, // doctorId is now an array
+      { doctorId: doctorIds },
       { new: true },
     )
       .populate("patientId", "firstname surname email")
