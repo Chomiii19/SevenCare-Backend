@@ -63,8 +63,10 @@ export const getAppointments = catchAsync(
       isArchived: false,
     };
 
+    // Status filter
     if (status) filter.status = status;
 
+    // Date filter (same UTC+8 logic)
     if (date) {
       const selectedDate = new Date(date as string);
       const utc8Offset = 8 * 60 * 60 * 1000;
@@ -96,11 +98,13 @@ export const getAppointments = catchAsync(
       filter.schedule = { $gte: start, $lt: end };
     }
 
+    // Service filter
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
       filter.medicalDepartment = { $in: serviceArray };
     }
 
+    // Fetch raw appointments
     let appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
@@ -154,7 +158,7 @@ export const getAllPendingAppointments = catchAsync(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
-    const { date, service } = req.query;
+    const { status, date, service } = req.query;
 
     const filter: any = { isDeleted: false, status: "Pending" };
 
@@ -236,6 +240,7 @@ export const getAppointmentById = catchAsync(
     }
 
     if (req.user?.role === "patient") {
+      // Type-safe patient ID extraction
       let patientId: string;
 
       if (appointment.patientId && typeof appointment.patientId === "object") {
@@ -254,6 +259,7 @@ export const getAppointmentById = catchAsync(
       }
     }
 
+    // Normalize the appointment data
     const normalizedAppointment = normalizeSingleAppointment(appointment);
 
     res.status(200).json({
@@ -266,14 +272,17 @@ export const getAppointmentById = catchAsync(
 function normalizeSingleAppointment(appt: any) {
   const obj = appt.toObject ? appt.toObject() : appt;
 
+  // Adjust schedule for UTC-8 offset
   const date = new Date(obj.schedule);
   date.setHours(date.getHours() - 8);
   obj.schedule = date.toISOString();
 
+  // Add patientName if patientId is populated
   if (obj.patientId && typeof obj.patientId === "object") {
     obj.patientName = `${obj.patientId.firstname} ${obj.patientId.surname}`;
   }
 
+  // Add doctorName if doctorId is populated
   if (obj.doctorId && typeof obj.doctorId === "object") {
     obj.doctorName = obj.doctorId.name;
   }
@@ -329,6 +338,7 @@ export const getTodayApprovedAppointments = catchAsync(
       filter.medicalDepartment = { $in: serviceArray };
     }
 
+    // Fetch appointments with patient and doctor populated
     let appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
@@ -344,9 +354,11 @@ export const getTodayApprovedAppointments = catchAsync(
 
     if (search) {
       const regex = new RegExp(search as string, "i");
+
       appointments = appointments.filter((appt) => {
         const p = appt.patientId as any;
         if (!p) return false;
+
         const fullname = `${p.firstname} ${p.surname}`;
         return (
           regex.test(p.firstname) ||
@@ -354,18 +366,22 @@ export const getTodayApprovedAppointments = catchAsync(
           regex.test(fullname)
         );
       });
+
       total = appointments.length;
     }
 
+    // Apply patientName filter
     if (patientName) {
       const regex = new RegExp(patientName as string, "i");
       appointments = appointments.filter((appt) => {
         const patient = appt.patientId as any;
-        return regex.test(`${patient.firstname} ${patient.surname}`);
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
       });
       total = appointments.length;
     }
 
+    // Apply doctorName filter
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
@@ -393,7 +409,7 @@ export const getAllAppointments = catchAsync(
       req.query;
 
     await Appointment.updateMany(
-      { isArchived: { $exists: false } },
+      { isArchived: { $exists: false } }, // only documents without the field
       { $set: { isArchived: false } },
     );
 
@@ -441,6 +457,7 @@ export const getAllAppointments = catchAsync(
       filter.medicalDepartment = { $in: serviceArray };
     }
 
+    // Fetch appointments with patient populated
     let appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
@@ -456,9 +473,11 @@ export const getAllAppointments = catchAsync(
 
     if (search) {
       const regex = new RegExp(search as string, "i");
+
       appointments = appointments.filter((appt) => {
         const p = appt.patientId as any;
         if (!p) return false;
+
         const fullname = `${p.firstname} ${p.surname}`;
         return (
           regex.test(p.firstname) ||
@@ -466,9 +485,11 @@ export const getAllAppointments = catchAsync(
           regex.test(fullname)
         );
       });
+
       total = appointments.length;
     }
 
+    // Apply patientName filter if present
     if (patientName) {
       const regex = new RegExp(patientName as string, "i");
       appointments = appointments.filter((appt) => {
@@ -476,9 +497,10 @@ export const getAllAppointments = catchAsync(
           firstname: string;
           surname: string;
         };
-        return regex.test(`${patient.firstname} ${patient.surname}`);
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
       });
-      total = appointments.length;
+      total = appointments.length; // update total for filtered results
     }
 
     if (doctorName) {
@@ -508,7 +530,7 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
       req.query;
 
     await Appointment.updateMany(
-      { isArchived: { $exists: false } },
+      { isArchived: { $exists: false } }, // only documents without the field
       { $set: { isArchived: false } },
     );
 
@@ -516,11 +538,7 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    // Filter appointments that have at least one medical record
-    const filter: any = {
-      isArchived: false,
-      medicalRecords: { $exists: true, $ne: [] },
-    };
+    const filter: any = { isArchived: false, medicalRecord: { $ne: null } };
 
     if (status) filter.status = status;
 
@@ -560,6 +578,7 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
       filter.medicalDepartment = { $in: serviceArray };
     }
 
+    // Fetch appointments with patient populated
     let appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
@@ -575,9 +594,11 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
 
     if (search) {
       const regex = new RegExp(search as string, "i");
+
       appointments = appointments.filter((appt) => {
         const p = appt.patientId as any;
         if (!p) return false;
+
         const fullname = `${p.firstname} ${p.surname}`;
         return (
           regex.test(p.firstname) ||
@@ -585,9 +606,11 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
           regex.test(fullname)
         );
       });
+
       total = appointments.length;
     }
 
+    // Apply patientName filter if present
     if (patientName) {
       const regex = new RegExp(patientName as string, "i");
       appointments = appointments.filter((appt) => {
@@ -595,9 +618,10 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
           firstname: string;
           surname: string;
         };
-        return regex.test(`${patient.firstname} ${patient.surname}`);
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
       });
-      total = appointments.length;
+      total = appointments.length; // update total for filtered results
     }
 
     if (doctorName) {
@@ -673,6 +697,7 @@ function normalizeAppointments(appts: any[]) {
   return appts.map((appt) => {
     const obj = appt.toObject ? appt.toObject() : appt;
     const date = new Date(obj.schedule);
+
     date.setHours(date.getHours() - 8);
     obj.schedule = date.toISOString();
 
@@ -727,6 +752,7 @@ export const editAppointment = catchAsync(
       );
     }
 
+    // Validate schedule
     const newDate = new Date(schedule);
     if (isNaN(newDate.getTime())) {
       return next(new AppError("Invalid schedule format", 400));
@@ -734,7 +760,10 @@ export const editAppointment = catchAsync(
 
     const updated = await Appointment.findByIdAndUpdate(
       id,
-      { medicalDepartment, schedule: newDate },
+      {
+        medicalDepartment,
+        schedule: newDate,
+      },
       { new: true },
     )
       .populate("patientId", "firstname surname")
@@ -827,6 +856,7 @@ export const getArchivedAppointments = catchAsync(
       filter.medicalDepartment = { $in: serviceArray };
     }
 
+    // Fetch appointments with patient and doctor populated
     let appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
@@ -842,9 +872,11 @@ export const getArchivedAppointments = catchAsync(
 
     if (search) {
       const regex = new RegExp(search as string, "i");
+
       appointments = appointments.filter((appt) => {
         const p = appt.patientId as any;
         if (!p) return false;
+
         const fullname = `${p.firstname} ${p.surname}`;
         return (
           regex.test(p.firstname) ||
@@ -852,18 +884,22 @@ export const getArchivedAppointments = catchAsync(
           regex.test(fullname)
         );
       });
+
       total = appointments.length;
     }
 
+    // Apply patientName filter
     if (patientName) {
       const regex = new RegExp(patientName as string, "i");
       appointments = appointments.filter((appt) => {
         const patient = appt.patientId as any;
-        return regex.test(`${patient.firstname} ${patient.surname}`);
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
       });
       total = appointments.length;
     }
 
+    // Apply doctorName filter
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
@@ -932,6 +968,7 @@ export const getTodayUserAppointments = catchAsync(
       filter.medicalDepartment = { $in: serviceArray };
     }
 
+    // Fetch appointments with patient and doctor populated
     let appointments = await Appointment.find(filter)
       .sort({ schedule: -1 })
       .skip(skip)
@@ -941,15 +978,18 @@ export const getTodayUserAppointments = catchAsync(
 
     let total = await Appointment.countDocuments(filter);
 
+    // Apply patientName filter
     if (patientName) {
       const regex = new RegExp(patientName as string, "i");
       appointments = appointments.filter((appt) => {
         const patient = appt.patientId as any;
-        return regex.test(`${patient.firstname} ${patient.surname}`);
+        const fullName = `${patient.firstname} ${patient.surname}`;
+        return regex.test(fullName);
       });
       total = appointments.length;
     }
 
+    // Apply doctorName filter
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
@@ -988,6 +1028,7 @@ export const getTodayAppointmentSummary = catchAsync(
         0,
       ),
     );
+
     const endOfDayLocal = new Date(
       Date.UTC(
         localNow.getUTCFullYear(),
@@ -1007,10 +1048,19 @@ export const getTodayAppointmentSummary = catchAsync(
 
     const counts = await Appointment.aggregate([
       { $match: filter },
-      { $group: { _id: "$status", count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
-    const summary = { completedCount: 0, ongoingCount: 0, cancelledCount: 0 };
+    const summary = {
+      completedCount: 0,
+      ongoingCount: 0,
+      cancelledCount: 0,
+    };
 
     counts.forEach((c) => {
       if (c._id === "Completed") summary.completedCount = c.count;
@@ -1030,14 +1080,17 @@ export const getTodayAppointmentSummary = catchAsync(
 export const getWeeklyAppointmentCounts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
+
     const utc8Offset = 8 * 60 * 60 * 1000;
     const localNow = new Date(now.getTime() + utc8Offset);
 
-    const day = localNow.getUTCDay();
+    // Start of the week (Sunday)
+    const day = localNow.getUTCDay(); // 0=Sun, 6=Sat
     const sunday = new Date(localNow);
     sunday.setUTCDate(localNow.getUTCDate() - day);
     sunday.setUTCHours(0, 0, 0, 0);
 
+    // End of the week (Saturday)
     const saturday = new Date(sunday);
     saturday.setUTCDate(sunday.getUTCDate() + 6);
     saturday.setUTCHours(23, 59, 59, 999);
@@ -1045,16 +1098,27 @@ export const getWeeklyAppointmentCounts = catchAsync(
     const completedCounts = Array(7).fill(0);
     const cancelledCounts = Array(7).fill(0);
 
+    // Only get appointments within this week
     const appointments = await Appointment.find({
       status: { $in: ["Completed", "Cancelled", "No Show"] },
       schedule: { $gte: sunday, $lte: saturday },
     });
 
     appointments.forEach((appt) => {
-      const weekday = new Date(appt.schedule).getUTCDay();
-      if (appt.status === "Completed") completedCounts[weekday]++;
-      else if (appt.status === "Cancelled" || appt.status === "No Show")
+      // Original appointment date in UTC
+      const date = new Date(appt.schedule);
+
+      // Subtract 8 hours to get UTC-8
+      const correctedDate = new Date(date.getTime());
+
+      // Get weekday 0=Sunday ... 6=Saturday
+      const weekday = correctedDate.getUTCDay();
+
+      if (appt.status === "Completed") {
+        completedCounts[weekday]++;
+      } else if (appt.status === "Cancelled" || appt.status === "No Show") {
         cancelledCounts[weekday]++;
+      }
     });
 
     res.status(200).json({
@@ -1079,22 +1143,27 @@ export const getMonthlyAppointmentCounts = catchAsync(
     const now = new Date();
     const year = now.getUTCFullYear();
 
+    const utc8Offset = 8 * 60 * 60 * 1000;
     const completedCounts = Array(12).fill(0);
     const cancelledCounts = Array(12).fill(0);
 
+    const startOfYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+    const endOfYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
     const appointments = await Appointment.find({
-      schedule: {
-        $gte: new Date(Date.UTC(year, 0, 1)),
-        $lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)),
-      },
+      schedule: { $gte: startOfYear, $lte: endOfYear },
       status: { $in: ["Completed", "Cancelled", "No Show"] },
     });
 
     appointments.forEach((appt) => {
-      const month = new Date(appt.schedule).getUTCMonth();
-      if (appt.status === "Completed") completedCounts[month]++;
-      else if (appt.status === "Cancelled" || appt.status === "No Show")
+      const date = new Date(appt.schedule);
+      const month = new Date(date.getTime()).getUTCMonth();
+
+      if (appt.status === "Completed") {
+        completedCounts[month]++;
+      } else if (appt.status === "Cancelled" || appt.status === "No Show") {
         cancelledCounts[month]++;
+      }
     });
 
     res.status(200).json({
@@ -1122,29 +1191,40 @@ export const getMonthlyAppointmentCounts = catchAsync(
 export const getYearlyAppointmentCounts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
+    const utc8Offset = 8 * 60 * 60 * 1000;
     const currentYear = now.getUTCFullYear();
 
     const years: number[] = [];
-    for (let i = 4; i >= 0; i--) years.push(currentYear - i);
+    for (let i = 4; i >= 0; i--) {
+      years.push(currentYear - i);
+    }
 
     const completedCounts = Array(5).fill(0);
     const cancelledCounts = Array(5).fill(0);
 
+    const earliestYear = currentYear - 4;
+
+    const start = new Date(Date.UTC(earliestYear, 0, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999));
+
     const appointments = await Appointment.find({
-      schedule: {
-        $gte: new Date(Date.UTC(currentYear - 4, 0, 1)),
-        $lte: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)),
-      },
+      schedule: { $gte: start, $lte: end },
       status: { $in: ["Completed", "Cancelled", "No Show"] },
     });
 
     appointments.forEach((appt) => {
-      const year = new Date(appt.schedule).getUTCFullYear();
+      const date = new Date(appt.schedule);
+      const local = new Date(date.getTime());
+      const year = local.getUTCFullYear();
+
       const index = years.indexOf(year);
       if (index === -1) return;
-      if (appt.status === "Completed") completedCounts[index]++;
-      else if (appt.status === "Cancelled" || appt.status === "No Show")
+
+      if (appt.status === "Completed") {
+        completedCounts[index]++;
+      } else if (appt.status === "Cancelled" || appt.status === "No Show") {
         cancelledCounts[index]++;
+      }
     });
 
     res.status(200).json({
@@ -1164,8 +1244,8 @@ function computePercentage(current: number, previous: number) {
 export const getWeeklyCompletedAppointments = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
-    const day = now.getUTCDay();
 
+    const day = now.getUTCDay();
     const startCurrent = new Date(now);
     startCurrent.setUTCDate(now.getUTCDate() - day);
     startCurrent.setUTCHours(0, 0, 0, 0);
@@ -1176,20 +1256,20 @@ export const getWeeklyCompletedAppointments = catchAsync(
 
     const startPrevious = new Date(startCurrent);
     startPrevious.setUTCDate(startCurrent.getUTCDate() - 7);
+
     const endPrevious = new Date(startPrevious);
     endPrevious.setUTCDate(startPrevious.getUTCDate() + 6);
     endPrevious.setUTCHours(23, 59, 59, 999);
 
-    const [totalCurrent, totalPrevious] = await Promise.all([
-      Appointment.countDocuments({
-        status: "Completed",
-        schedule: { $gte: startCurrent, $lte: endCurrent },
-      }),
-      Appointment.countDocuments({
-        status: "Completed",
-        schedule: { $gte: startPrevious, $lte: endPrevious },
-      }),
-    ]);
+    const totalCurrent = await Appointment.countDocuments({
+      status: "Completed",
+      schedule: { $gte: startCurrent, $lte: endCurrent },
+    });
+
+    const totalPrevious = await Appointment.countDocuments({
+      status: "Completed",
+      schedule: { $gte: startPrevious, $lte: endPrevious },
+    });
 
     res.status(200).json({
       status: "Success",
@@ -1211,6 +1291,7 @@ export const getMonthlyCompletedAppointments = catchAsync(
     const endCurrent = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999),
     );
+
     const startPrevious = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
     );
@@ -1226,16 +1307,15 @@ export const getMonthlyCompletedAppointments = catchAsync(
       ),
     );
 
-    const [totalCurrent, totalPrevious] = await Promise.all([
-      Appointment.countDocuments({
-        status: "Completed",
-        schedule: { $gte: startCurrent, $lte: endCurrent },
-      }),
-      Appointment.countDocuments({
-        status: "Completed",
-        schedule: { $gte: startPrevious, $lte: endPrevious },
-      }),
-    ]);
+    const totalCurrent = await Appointment.countDocuments({
+      status: "Completed",
+      schedule: { $gte: startCurrent, $lte: endCurrent },
+    });
+
+    const totalPrevious = await Appointment.countDocuments({
+      status: "Completed",
+      schedule: { $gte: startPrevious, $lte: endPrevious },
+    });
 
     res.status(200).json({
       status: "Success",
@@ -1255,21 +1335,21 @@ export const getYearlyCompletedAppointments = catchAsync(
     const endCurrent = new Date(
       Date.UTC(now.getUTCFullYear(), 11, 31, 23, 59, 59, 999),
     );
+
     const startPrevious = new Date(Date.UTC(now.getUTCFullYear() - 1, 0, 1));
     const endPrevious = new Date(
       Date.UTC(now.getUTCFullYear() - 1, 11, 31, 23, 59, 59, 999),
     );
 
-    const [totalCurrent, totalPrevious] = await Promise.all([
-      Appointment.countDocuments({
-        status: "Completed",
-        schedule: { $gte: startCurrent, $lte: endCurrent },
-      }),
-      Appointment.countDocuments({
-        status: "Completed",
-        schedule: { $gte: startPrevious, $lte: endPrevious },
-      }),
-    ]);
+    const totalCurrent = await Appointment.countDocuments({
+      status: "Completed",
+      schedule: { $gte: startCurrent, $lte: endCurrent },
+    });
+
+    const totalPrevious = await Appointment.countDocuments({
+      status: "Completed",
+      schedule: { $gte: startPrevious, $lte: endPrevious },
+    });
 
     res.status(200).json({
       status: "Success",
@@ -1298,9 +1378,11 @@ export const getDoctorsForAppointment = catchAsync(
         .json({ status: "Fail", message: "Appointment not found" });
     }
 
+    const appointmentTime = appointment.schedule;
+
     const schedules = await Schedule.find({
-      start: { $lte: appointment.schedule },
-      end: { $gte: appointment.schedule },
+      start: { $lte: appointmentTime },
+      end: { $gte: appointmentTime },
     }).populate("doctorId", "name specialization");
 
     const doctorsMap = new Map<string, any>();
@@ -1324,16 +1406,21 @@ export const getAppointmentsByUserId = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
 
-    if (!id) return next(new AppError("User ID is required", 400));
+    if (!id) {
+      return next(new AppError("User ID is required", 400));
+    }
 
     const user = await User.findById(id);
-    if (!user) return next(new AppError("User not found", 404));
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
     const { status, service } = req.query;
+
     const filter: any = { patientId: id };
 
     if (status) filter.status = status;
