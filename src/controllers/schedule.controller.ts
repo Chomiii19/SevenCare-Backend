@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import catchAsync from "../utils/catchAsync";
 import AppError from "../utils/appError";
 import Schedule from "../models/schedule.model";
+import Appointment from "../models/appointment.model";
 
 export const createSchedule = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -235,6 +236,40 @@ export const getTodaySchedules = catchAsync(
       status: "Success",
       results: schedules.length,
       data: schedules,
+    });
+  },
+);
+
+export const getDoctorsForAppointment = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res
+        .status(404)
+        .json({ status: "Fail", message: "Appointment not found" });
+    }
+
+    const appointmentTime = appointment.schedule;
+
+    // Find schedules that cover the appointment time
+    const schedules = await Schedule.find({
+      start: { $lte: appointmentTime },
+      end: { $gte: appointmentTime },
+    }).populate("doctorId", "firstname surname specialization");
+
+    const doctorsMap = new Map<string, any>();
+    for (const sched of schedules) {
+      if (sched.doctorId) {
+        doctorsMap.set(sched.doctorId._id.toString(), sched.doctorId);
+      }
+    }
+
+    res.status(200).json({
+      status: "Success",
+      results: doctorsMap.size,
+      data: Array.from(doctorsMap.values()),
     });
   },
 );
