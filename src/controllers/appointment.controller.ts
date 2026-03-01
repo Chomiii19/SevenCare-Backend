@@ -741,31 +741,30 @@ function normalizeAppointments(appts: any[]) {
 export const updateAppointmentDoctor = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
-    const { doctorId } = req.body;
+    const { doctorIds } = req.body; // now an array
 
-    if (!doctorId) return next(new AppError("doctorId is required", 400));
+    if (!doctorIds || !Array.isArray(doctorIds) || doctorIds.length === 0)
+      return next(new AppError("doctorIds array is required", 400));
 
-    const doctorExists = await Doctor.findById(doctorId);
-    if (!doctorExists) {
-      return next(new AppError("Doctor not found", 404));
-    }
+    // Verify all doctors exist
+    const doctors = await Doctor.find({ _id: { $in: doctorIds } });
+    if (doctors.length !== doctorIds.length)
+      return next(new AppError("One or more doctors not found", 404));
 
     const updated = await Appointment.findByIdAndUpdate(
       id,
-      { doctorId },
+      { doctorId: doctorIds }, // doctorId is now an array
       { new: true },
     )
       .populate("patientId", "firstname surname email")
-      .populate("medicalDepartment", "name price status")
-      .populate("doctorId", "name specialization schedule");
+      .populate("doctorId", "firstname surname specialization")
+      .populate("medicalDepartment", "name price status");
 
-    if (!updated) {
-      return next(new AppError("Appointment not found", 404));
-    }
+    if (!updated) return next(new AppError("Appointment not found", 404));
 
     res.status(200).json({
       status: "Success",
-      message: "Doctor updated for appointment",
+      message: "Doctors updated for appointment",
       data: updated,
     });
   },
