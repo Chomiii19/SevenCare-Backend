@@ -538,7 +538,10 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
     const limit = parseInt(req.query.limit as string) || 15;
     const skip = (page - 1) * limit;
 
-    const filter: any = { isArchived: false, medicalRecord: { $ne: null } };
+    const filter: any = {
+      isArchived: false,
+      medicalRecords: { $exists: true, $ne: [] },
+    };
 
     if (status) filter.status = status;
 
