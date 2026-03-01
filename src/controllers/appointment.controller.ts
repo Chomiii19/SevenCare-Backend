@@ -1482,7 +1482,7 @@ export const getAppointmentsByUserId = catchAsync(
       .skip(skip)
       .limit(limit)
       .populate("patientId", "_id firstname surname")
-      .populate("doctorId", "name")
+      .populate("doctorId", "_id firstname middlename surname specialization")
       .populate("medicalDepartment", "name price status")
       .populate(
         "medicalRecords",
