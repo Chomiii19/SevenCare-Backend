@@ -116,6 +116,7 @@ export const getAppointments = catchAsync(
       .limit(limit)
       .populate("patientId", "firstname surname")
       .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status")
       .populate("medicalRecords", "fileUrl filename originalName uploadedAt");
 
     let total = await Appointment.countDocuments(filter);
@@ -213,7 +214,8 @@ export const getAllPendingAppointments = catchAsync(
       .sort({ schedule: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("patientId", "firstname surname");
+      .populate("patientId", "firstname surname")
+      .populate("medicalDepartment", "name price status");
 
     res.status(200).json({
       status: "Success",
@@ -358,6 +360,7 @@ export const getTodayApprovedAppointments = catchAsync(
       .limit(limit)
       .populate("patientId", "_id firstname surname")
       .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status")
       .populate(
         "medicalRecords",
         "_id fileUrl filename originalName uploadedAt",
@@ -481,6 +484,7 @@ export const getAllAppointments = catchAsync(
       .limit(limit)
       .populate("patientId", "_id firstname surname")
       .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status")
       .populate(
         "medicalRecords",
         "_id fileUrl filename originalName uploadedAt",
@@ -609,6 +613,7 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
       .limit(limit)
       .populate("patientId", "_id firstname surname")
       .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status")
       .populate(
         "medicalRecords",
         "_id fileUrl filename originalName uploadedAt",
@@ -751,6 +756,7 @@ export const updateAppointmentDoctor = catchAsync(
       { new: true },
     )
       .populate("patientId", "firstname surname email")
+      .populate("medicalDepartment", "name price status")
       .populate("doctorId", "name specialization schedule");
 
     if (!updated) {
@@ -791,6 +797,7 @@ export const editAppointment = catchAsync(
       { new: true },
     )
       .populate("patientId", "firstname surname")
+      .populate("medicalDepartment", "name price status")
       .populate("doctorId", "name");
 
     if (!updated) {
@@ -815,7 +822,8 @@ export const toggleArchiveAppointment = catchAsync(
 
     const appointment = await Appointment.findById(id)
       .populate("patientId", "firstname surname email")
-      .populate("doctorId", "name specialization schedule");
+      .populate("doctorId", "name specialization schedule")
+      .populate("medicalDepartment", "name price status");
 
     if (!appointment) return next(new AppError("Appointment not found", 404));
 
@@ -891,6 +899,7 @@ export const getArchivedAppointments = catchAsync(
       .limit(limit)
       .populate("patientId", "_id firstname surname")
       .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status")
       .populate(
         "medicalRecords",
         "_id fileUrl filename originalName uploadedAt",
@@ -1002,7 +1011,8 @@ export const getTodayUserAppointments = catchAsync(
       .skip(skip)
       .limit(limit)
       .populate("patientId", "firstname surname")
-      .populate("doctorId", "name");
+      .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status");
 
     let total = await Appointment.countDocuments(filter);
 
@@ -1470,6 +1480,7 @@ export const getAppointmentsByUserId = catchAsync(
       .limit(limit)
       .populate("patientId", "_id firstname surname")
       .populate("doctorId", "name")
+      .populate("medicalDepartment", "name price status")
       .populate(
         "medicalRecords",
         "_id fileUrl filename originalName uploadedAt",
