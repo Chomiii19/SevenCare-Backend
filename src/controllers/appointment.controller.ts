@@ -124,8 +124,15 @@ export const getAppointments = catchAsync(
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
-        const doctor = appt.doctorId as any;
-        return doctor && regex.test(doctor.name);
+        const doctors = Array.isArray(appt.doctorId)
+          ? appt.doctorId
+          : [appt.doctorId];
+        return doctors.some((d: any) => {
+          if (!d) return false;
+          const fullName =
+            `${d.firstname ?? ""} ${d.middlename ?? ""} ${d.surname ?? ""}`.trim();
+          return regex.test(fullName);
+        });
       });
       total = appointments.length;
     }
@@ -401,8 +408,15 @@ export const getTodayApprovedAppointments = catchAsync(
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
-        const doctor = appt.doctorId as any;
-        return doctor && regex.test(doctor.name);
+        const doctors = Array.isArray(appt.doctorId)
+          ? appt.doctorId
+          : [appt.doctorId];
+        return doctors.some((d: any) => {
+          if (!d) return false;
+          const fullName =
+            `${d.firstname ?? ""} ${d.middlename ?? ""} ${d.surname ?? ""}`.trim();
+          return regex.test(fullName);
+        });
       });
       total = appointments.length;
     }
@@ -527,12 +541,18 @@ export const getAllAppointments = catchAsync(
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
-        const d = appt.doctorId as any;
-        return d && regex.test(d.name);
+        const doctors = Array.isArray(appt.doctorId)
+          ? appt.doctorId
+          : [appt.doctorId];
+        return doctors.some((d: any) => {
+          if (!d) return false;
+          const fullName =
+            `${d.firstname ?? ""} ${d.middlename ?? ""} ${d.surname ?? ""}`.trim();
+          return regex.test(fullName);
+        });
       });
       total = appointments.length;
     }
-
     res.status(200).json({
       status: "Success",
       results: appointments.length,
@@ -656,8 +676,15 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
-        const d = appt.doctorId as any;
-        return d && regex.test(d.name);
+        const doctors = Array.isArray(appt.doctorId)
+          ? appt.doctorId
+          : [appt.doctorId];
+        return doctors.some((d: any) => {
+          if (!d) return false;
+          const fullName =
+            `${d.firstname ?? ""} ${d.middlename ?? ""} ${d.surname ?? ""}`.trim();
+          return regex.test(fullName);
+        });
       });
       total = appointments.length;
     }
@@ -939,12 +966,18 @@ export const getArchivedAppointments = catchAsync(
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
-        const doctor = appt.doctorId as any;
-        return doctor && regex.test(doctor.name);
+        const doctors = Array.isArray(appt.doctorId)
+          ? appt.doctorId
+          : [appt.doctorId];
+        return doctors.some((d: any) => {
+          if (!d) return false;
+          const fullName =
+            `${d.firstname ?? ""} ${d.middlename ?? ""} ${d.surname ?? ""}`.trim();
+          return regex.test(fullName);
+        });
       });
       total = appointments.length;
     }
-
     res.status(200).json({
       status: "Success",
       results: appointments.length,
@@ -1034,8 +1067,15 @@ export const getTodayUserAppointments = catchAsync(
     if (doctorName) {
       const regex = new RegExp(doctorName as string, "i");
       appointments = appointments.filter((appt) => {
-        const doctor = appt.doctorId as any;
-        return doctor && regex.test(doctor.name);
+        const doctors = Array.isArray(appt.doctorId)
+          ? appt.doctorId
+          : [appt.doctorId];
+        return doctors.some((d: any) => {
+          if (!d) return false;
+          const fullName =
+            `${d.firstname ?? ""} ${d.middlename ?? ""} ${d.surname ?? ""}`.trim();
+          return regex.test(fullName);
+        });
       });
       total = appointments.length;
     }
