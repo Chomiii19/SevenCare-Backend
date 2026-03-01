@@ -1002,7 +1002,11 @@ export const getTodayUserAppointments = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     // Fetch appointments with patient and doctor populated
