@@ -7,15 +7,14 @@ const AppointmentSchema = new mongoose.Schema({
     required: true,
   },
   doctorId: {
-    type: Schema.Types.ObjectId,
-    ref: "doctor",
-    required: false,
+    type: [{ type: Schema.Types.ObjectId, ref: "doctor" }],
+    default: [],
   },
   medicalDepartment: {
-    type: [String],
+    type: [{ type: Schema.Types.ObjectId, ref: "service" }],
     required: true,
     validate: {
-      validator: function (v: string[]) {
+      validator: function (v: mongoose.Types.ObjectId[]) {
         return v.length > 0 && v.length <= 3;
       },
       message: "You must select between 1 and 3 departments",

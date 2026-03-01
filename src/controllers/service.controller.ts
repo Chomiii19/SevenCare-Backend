@@ -106,13 +106,6 @@ export const deleteService = catchAsync(
 
 const utc8Offset = 8 * 60 * 60 * 1000;
 
-const getAppointmentRevenue = async (appt: any) => {
-  const services = await Service.find({
-    name: { $in: appt.medicalDepartment },
-  });
-  return services.reduce((sum, s) => sum + s.price, 0);
-};
-
 export const getWeeklyServicesAvailed = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const now = new Date();
@@ -131,54 +124,59 @@ export const getWeeklyServicesAvailed = catchAsync(
     const prevSaturday = new Date(saturday);
     prevSaturday.setUTCDate(prevSaturday.getUTCDate() - 7);
 
-    const appointments = await Appointment.find({
-      schedule: { $gte: sunday, $lte: saturday },
-      status: "Completed",
-    });
+    const [appointments, prevAppointments] = await Promise.all([
+      Appointment.find({
+        schedule: { $gte: sunday, $lte: saturday },
+        status: "Completed",
+      }).populate("medicalDepartment", "name price"),
+      Appointment.find({
+        schedule: { $gte: prevSunday, $lte: prevSaturday },
+        status: "Completed",
+      }).populate("medicalDepartment", "name price"),
+    ]);
 
-    const prevAppointments = await Appointment.find({
-      schedule: { $gte: prevSunday, $lte: prevSaturday },
-      status: "Completed",
-    });
+    const serviceMap = new Map<string, { name: string; price: number }>();
 
-    const allServices = Array.from(
-      new Set(
-        appointments
-          .flatMap((a) => a.medicalDepartment)
-          .concat(prevAppointments.flatMap((a) => a.medicalDepartment)),
-      ),
-    );
+    const collectServices = (appts: any[]) => {
+      appts.forEach((appt) => {
+        appt.medicalDepartment.forEach((svc: any) => {
+          if (!serviceMap.has(svc._id.toString())) {
+            serviceMap.set(svc._id.toString(), {
+              name: svc.name,
+              price: svc.price,
+            });
+          }
+        });
+      });
+    };
 
+    collectServices(appointments);
+    collectServices(prevAppointments);
+
+    const labels: string[] = [];
     const counts: number[] = [];
     const currentRevenue: number[] = [];
     const prevRevenue: number[] = [];
 
-    for (const service of allServices) {
-      const currentAppts = appointments.filter((a) =>
-        a.medicalDepartment.includes(service),
+    for (const [serviceId, { name, price }] of Array.from(
+      serviceMap.entries(),
+    )) {
+      const currentAppts = appointments.filter((a: any) =>
+        a.medicalDepartment.some((s: any) => s._id.toString() === serviceId),
       );
-      const previousAppts = prevAppointments.filter((a) =>
-        a.medicalDepartment.includes(service),
+      const previousAppts = prevAppointments.filter((a: any) =>
+        a.medicalDepartment.some((s: any) => s._id.toString() === serviceId),
       );
 
+      labels.push(name);
       counts.push(currentAppts.length);
-      currentRevenue.push(
-        (await Promise.all(currentAppts.map(getAppointmentRevenue))).reduce(
-          (sum, r) => sum + r,
-          0,
-        ),
-      );
-      prevRevenue.push(
-        (await Promise.all(previousAppts.map(getAppointmentRevenue))).reduce(
-          (sum, r) => sum + r,
-          0,
-        ),
-      );
+      currentRevenue.push(currentAppts.length * price);
+      prevRevenue.push(previousAppts.length * price);
     }
 
     res.status(200).json({
       status: "Success",
-      labels: allServices,
+      labels,
       counts,
       totalCurrent: currentRevenue.reduce((a, b) => a + b, 0),
       totalPrevious: prevRevenue.reduce((a, b) => a + b, 0),
@@ -198,54 +196,59 @@ export const getMonthlyServicesAvailed = catchAsync(
     const startPrevYear = new Date(Date.UTC(year - 1, 0, 1));
     const endPrevYear = new Date(Date.UTC(year - 1, 11, 31, 23, 59, 59, 999));
 
-    const appointments = await Appointment.find({
-      schedule: { $gte: startOfYear, $lte: endOfYear },
-      status: "Completed",
-    });
+    const [appointments, prevAppointments] = await Promise.all([
+      Appointment.find({
+        schedule: { $gte: startOfYear, $lte: endOfYear },
+        status: "Completed",
+      }).populate("medicalDepartment", "name price"),
+      Appointment.find({
+        schedule: { $gte: startPrevYear, $lte: endPrevYear },
+        status: "Completed",
+      }).populate("medicalDepartment", "name price"),
+    ]);
 
-    const prevAppointments = await Appointment.find({
-      schedule: { $gte: startPrevYear, $lte: endPrevYear },
-      status: "Completed",
-    });
+    const serviceMap = new Map<string, { name: string; price: number }>();
 
-    const allServices = Array.from(
-      new Set(
-        appointments
-          .flatMap((a) => a.medicalDepartment)
-          .concat(prevAppointments.flatMap((a) => a.medicalDepartment)),
-      ),
-    );
+    const collectServices = (appts: any[]) => {
+      appts.forEach((appt) => {
+        appt.medicalDepartment.forEach((svc: any) => {
+          if (!serviceMap.has(svc._id.toString())) {
+            serviceMap.set(svc._id.toString(), {
+              name: svc.name,
+              price: svc.price,
+            });
+          }
+        });
+      });
+    };
 
+    collectServices(appointments);
+    collectServices(prevAppointments);
+
+    const labels: string[] = [];
     const counts: number[] = [];
     const currentRevenue: number[] = [];
     const prevRevenue: number[] = [];
 
-    for (const service of allServices) {
-      const currentAppts = appointments.filter((a) =>
-        a.medicalDepartment.includes(service),
+    for (const [serviceId, { name, price }] of Array.from(
+      serviceMap.entries(),
+    )) {
+      const currentAppts = appointments.filter((a: any) =>
+        a.medicalDepartment.some((s: any) => s._id.toString() === serviceId),
       );
-      const previousAppts = prevAppointments.filter((a) =>
-        a.medicalDepartment.includes(service),
+      const previousAppts = prevAppointments.filter((a: any) =>
+        a.medicalDepartment.some((s: any) => s._id.toString() === serviceId),
       );
 
+      labels.push(name);
       counts.push(currentAppts.length);
-      currentRevenue.push(
-        (await Promise.all(currentAppts.map(getAppointmentRevenue))).reduce(
-          (sum, r) => sum + r,
-          0,
-        ),
-      );
-      prevRevenue.push(
-        (await Promise.all(previousAppts.map(getAppointmentRevenue))).reduce(
-          (sum, r) => sum + r,
-          0,
-        ),
-      );
+      currentRevenue.push(currentAppts.length * price);
+      prevRevenue.push(previousAppts.length * price);
     }
 
     res.status(200).json({
       status: "Success",
-      labels: allServices,
+      labels,
       counts,
       totalCurrent: currentRevenue.reduce((a, b) => a + b, 0),
       totalPrevious: prevRevenue.reduce((a, b) => a + b, 0),
@@ -261,60 +264,65 @@ export const getYearlyServicesAvailed = catchAsync(
     const currentYear = localNow.getUTCFullYear();
     const startYear = currentYear - 4;
 
-    const appointments = await Appointment.find({
-      schedule: {
-        $gte: new Date(Date.UTC(startYear, 0, 1)),
-        $lte: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)),
-      },
-      status: "Completed",
-    });
+    const [appointments, prevAppointments] = await Promise.all([
+      Appointment.find({
+        schedule: {
+          $gte: new Date(Date.UTC(startYear, 0, 1)),
+          $lte: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)),
+        },
+        status: "Completed",
+      }).populate("medicalDepartment", "name price"),
+      Appointment.find({
+        schedule: {
+          $gte: new Date(Date.UTC(startYear - 5, 0, 1)),
+          $lte: new Date(Date.UTC(currentYear - 5, 11, 31, 23, 59, 59, 999)),
+        },
+        status: "Completed",
+      }).populate("medicalDepartment", "name price"),
+    ]);
 
-    const prevAppointments = await Appointment.find({
-      schedule: {
-        $gte: new Date(Date.UTC(startYear - 5, 0, 1)),
-        $lte: new Date(Date.UTC(currentYear - 5, 11, 31, 23, 59, 59, 999)),
-      },
-      status: "Completed",
-    });
+    const serviceMap = new Map<string, { name: string; price: number }>();
 
-    const allServices = Array.from(
-      new Set(
-        appointments
-          .flatMap((a) => a.medicalDepartment)
-          .concat(prevAppointments.flatMap((a) => a.medicalDepartment)),
-      ),
-    );
+    const collectServices = (appts: any[]) => {
+      appts.forEach((appt) => {
+        appt.medicalDepartment.forEach((svc: any) => {
+          if (!serviceMap.has(svc._id.toString())) {
+            serviceMap.set(svc._id.toString(), {
+              name: svc.name,
+              price: svc.price,
+            });
+          }
+        });
+      });
+    };
 
+    collectServices(appointments);
+    collectServices(prevAppointments);
+
+    const labels: string[] = [];
     const counts: number[] = [];
     const currentRevenue: number[] = [];
     const prevRevenue: number[] = [];
 
-    for (const service of allServices) {
-      const currentAppts = appointments.filter((a) =>
-        a.medicalDepartment.includes(service),
+    for (const [serviceId, { name, price }] of Array.from(
+      serviceMap.entries(),
+    )) {
+      const currentAppts = appointments.filter((a: any) =>
+        a.medicalDepartment.some((s: any) => s._id.toString() === serviceId),
       );
-      const previousAppts = prevAppointments.filter((a) =>
-        a.medicalDepartment.includes(service),
+      const previousAppts = prevAppointments.filter((a: any) =>
+        a.medicalDepartment.some((s: any) => s._id.toString() === serviceId),
       );
 
+      labels.push(name);
       counts.push(currentAppts.length);
-      currentRevenue.push(
-        (await Promise.all(currentAppts.map(getAppointmentRevenue))).reduce(
-          (sum, r) => sum + r,
-          0,
-        ),
-      );
-      prevRevenue.push(
-        (await Promise.all(previousAppts.map(getAppointmentRevenue))).reduce(
-          (sum, r) => sum + r,
-          0,
-        ),
-      );
+      currentRevenue.push(currentAppts.length * price);
+      prevRevenue.push(previousAppts.length * price);
     }
 
     res.status(200).json({
       status: "Success",
-      labels: allServices,
+      labels,
       counts,
       totalCurrent: currentRevenue.reduce((a, b) => a + b, 0),
       totalPrevious: prevRevenue.reduce((a, b) => a + b, 0),
@@ -338,20 +346,15 @@ export const getTopAvailedServices = catchAsync(async (req, res) => {
       $lookup: {
         from: "services",
         localField: "_id",
-        foreignField: "name",
+        foreignField: "_id",
         as: "serviceInfo",
       },
     },
-    {
-      $unwind: {
-        path: "$serviceInfo",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
+    { $unwind: { path: "$serviceInfo", preserveNullAndEmptyArrays: true } },
     {
       $project: {
         _id: 0,
-        name: "$_id",
+        name: "$serviceInfo.name",
         count: 1,
         price: "$serviceInfo.price",
         status: "$serviceInfo.status",
@@ -359,17 +362,13 @@ export const getTopAvailedServices = catchAsync(async (req, res) => {
     },
   ]);
 
-  res.status(200).json({
-    status: "success",
-    data: top,
-  });
+  res.status(200).json({ status: "success", data: top });
 });
 
 export const getServicePrices = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { names } = req.body;
 
-    // Validate that names is provided and is an array
     if (!names || !Array.isArray(names)) {
       return next(
         new AppError("Please provide an array of service names", 400),
@@ -380,19 +379,15 @@ export const getServicePrices = catchAsync(
       return next(new AppError("Service names array cannot be empty", 400));
     }
 
-    // Find all services matching the provided names
     const services = await Service.find({
       name: { $in: names },
     }).select("name price");
 
-    // Create a price map object
     const priceMap: { [key: string]: number } = {};
-
     services.forEach((service) => {
       priceMap[service.name] = service.price;
     });
 
-    // Check if any requested services were not found
     const foundNames = Object.keys(priceMap);
     const notFound = names.filter((name) => !foundNames.includes(name));
 
@@ -400,14 +395,11 @@ export const getServicePrices = catchAsync(
       return res.status(200).json({
         status: "success",
         data: priceMap,
-        notFound: notFound,
+        notFound,
         message: `Some services were not found: ${notFound.join(", ")}`,
       });
     }
 
-    res.status(200).json({
-      status: "success",
-      data: priceMap,
-    });
+    res.status(200).json({ status: "success", data: priceMap });
   },
 );

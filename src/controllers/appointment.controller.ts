@@ -5,6 +5,7 @@ import AppError from "../utils/appError";
 import Doctor from "../models/doctor.model";
 import Schedule from "../models/schedule.model";
 import User from "../models/user.model";
+import mongoose from "mongoose";
 
 export const createAppointment = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -101,7 +102,11 @@ export const getAppointments = catchAsync(
     // Service filter
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     // Fetch raw appointments
@@ -195,7 +200,11 @@ export const getAllPendingAppointments = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     const total = await Appointment.countDocuments(filter);
@@ -335,7 +344,11 @@ export const getTodayApprovedAppointments = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     // Fetch appointments with patient and doctor populated
@@ -454,7 +467,11 @@ export const getAllAppointments = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     // Fetch appointments with patient populated
@@ -578,7 +595,11 @@ export const getAppointmentsWithMedicalRecord = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     // Fetch appointments with patient populated
@@ -856,7 +877,11 @@ export const getArchivedAppointments = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     // Fetch appointments with patient and doctor populated
@@ -1430,7 +1455,11 @@ export const getAppointmentsByUserId = catchAsync(
 
     if (service) {
       const serviceArray = Array.isArray(service) ? service : [service];
-      filter.medicalDepartment = { $in: serviceArray };
+      filter.medicalDepartment = {
+        $in: serviceArray.map(
+          (id) => new mongoose.Types.ObjectId(id as string),
+        ),
+      };
     }
 
     const total = await Appointment.countDocuments(filter);
