@@ -80,7 +80,7 @@ export const getSchedules = catchAsync(
     const total = await Schedule.countDocuments(filter);
 
     const schedules = await Schedule.find(filter)
-      .populate("doctorId", "name specialization")
+      .populate("doctorId", "firstname middlename surname specialization")
       .skip(skip)
       .limit(limit)
       .sort({ start: -1 });
@@ -107,7 +107,7 @@ export const getSchedule = catchAsync(
 
     const schedule = await Schedule.findById(id).populate(
       "doctorId",
-      "name specialization",
+      "firstname middlename surname specialization",
     );
 
     if (!schedule) return next(new AppError("Schedule not found.", 404));
@@ -229,7 +229,7 @@ export const getTodaySchedules = catchAsync(
     }
 
     const schedules = await Schedule.find(filter)
-      .populate("doctorId", "name specialization")
+      .populate("doctorId", "firstname middlename surname specialization")
       .sort({ start: -1 });
 
     res.status(200).json({
