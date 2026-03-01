@@ -3,54 +3,60 @@ import { uploadToSupabase, deleteFromSupabase } from "../utils/drive";
 import MedicalRecord from "../models/medicalRecord.model";
 import AppError from "../utils/appError";
 import catchAsync from "../utils/catchAsync";
-import multer from "multer";
 import path from "path";
 import { supabase } from "../configs/supabaseClient";
 import Appointment from "../models/appointment.model";
 
-const storage = multer.memoryStorage();
-export const upload = multer({ storage });
-
-export const uploadMedicalRecord = catchAsync(
+export const uploadMedicalRecords = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { appointmentId } = req.body;
     if (!appointmentId) return next(new AppError("Missing appointmentId", 400));
-    if (!req.file) return next(new AppError("No file uploaded", 400));
 
-    const file = req.file;
-    const fileExt = path.extname(file.originalname);
-    const fileName = `${Date.now()}-${file.originalname}`;
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0)
+      return next(new AppError("No files uploaded", 400));
 
-    // upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from("medical-records") // your bucket name
-      .upload(fileName, file.buffer, {
-        contentType: file.mimetype,
-        upsert: true,
-      });
+    const uploadResults = await Promise.all(
+      files.map(async (file) => {
+        const fileName = `${Date.now()}-${file.originalname}`;
 
-    if (error)
-      return next(new AppError(`Upload failed: ${error.message}`, 500));
+        const { data, error } = await supabase.storage
+          .from("medical-records")
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
 
-    const fileUrl = supabase.storage
-      .from("medical-records")
-      .getPublicUrl(fileName).data.publicUrl;
+        if (error)
+          throw new AppError(
+            `Upload failed for ${file.originalname}: ${error.message}`,
+            500,
+          );
 
-    const medicalRecord = await MedicalRecord.create({
-      appointmentId,
-      filename: fileName,
-      originalName: file.originalname,
-      driveId: data.path,
-      fileUrl,
-    });
+        const fileUrl = supabase.storage
+          .from("medical-records")
+          .getPublicUrl(fileName).data.publicUrl;
 
+        return MedicalRecord.create({
+          appointmentId,
+          filename: fileName,
+          originalName: file.originalname,
+          driveId: data.path,
+          fileUrl,
+        });
+      }),
+    );
+
+    // Push all new record IDs onto the appointment
+    const recordIds = uploadResults.map((r) => r._id);
     await Appointment.findByIdAndUpdate(appointmentId, {
-      medicalRecord: medicalRecord._id,
+      $push: { medicalRecords: { $each: recordIds } },
     });
 
     res.status(200).json({
       status: "success",
-      data: { medicalRecord },
+      results: uploadResults.length,
+      data: { medicalRecords: uploadResults },
     });
   },
 );
@@ -88,11 +94,11 @@ export const updateMedicalRecord = catchAsync(
     if (req.file) {
       await deleteFromSupabase(record.driveId);
 
-      const { path, url } = await uploadToSupabase(req.file);
+      const { path: filePath, url } = await uploadToSupabase(req.file);
 
       record.filename = req.file.filename;
       record.originalName = req.file.originalname;
-      record.driveId = path;
+      record.driveId = filePath;
       record.fileUrl = url;
     }
 
@@ -114,23 +120,17 @@ export const deleteMedicalRecord = catchAsync(
     if (!appointmentId || !recordId)
       return next(new AppError("Missing appointmentId or recordId", 400));
 
-    const appointment = await Appointment.findById(appointmentId).populate<{
-      medicalRecord?: {
-        _id: string;
-        driveId: string;
-        filename: string;
-      };
-    }>("medicalRecord");
-
+    const appointment = await Appointment.findById(appointmentId);
     if (!appointment) return next(new AppError("Appointment not found", 404));
 
-    const record = appointment.medicalRecord;
+    const record = await MedicalRecord.findById(recordId);
     if (!record) return next(new AppError("Medical record not found", 404));
 
     await deleteFromSupabase(record.driveId);
 
-    appointment.medicalRecord = undefined;
-    await appointment.save();
+    await Appointment.findByIdAndUpdate(appointmentId, {
+      $pull: { medicalRecords: record._id },
+    });
 
     await MedicalRecord.findByIdAndDelete(record._id);
 

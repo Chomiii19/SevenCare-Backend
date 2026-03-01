@@ -1,5 +1,4 @@
 import mongoose, { Schema } from "mongoose";
-import validator from "validator";
 
 const AppointmentSchema = new mongoose.Schema({
   patientId: {
@@ -22,10 +21,9 @@ const AppointmentSchema = new mongoose.Schema({
       message: "You must select between 1 and 3 departments",
     },
   },
-  medicalRecord: {
-    type: Schema.Types.ObjectId,
-    ref: "medicalrecord",
-    default: null,
+  medicalRecords: {
+    type: [{ type: Schema.Types.ObjectId, ref: "medicalrecord" }],
+    default: [],
   },
   email: {
     type: String,
