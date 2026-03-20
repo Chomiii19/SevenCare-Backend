@@ -5,17 +5,18 @@ const DoctorSchema = new mongoose.Schema<IDoctors>({
   firstname: {
     type: String,
     required: [true, "Name can't be empty"],
-    unique: true,
   },
   middlename: {
     type: String,
     required: [true, "Name can't be empty"],
-    unique: true,
   },
   surname: {
     type: String,
     required: [true, "Name can't be empty"],
-    unique: true,
+  },
+  suffix: {
+    type: String,
+    default: "",
   },
   specialization: {
     type: String,

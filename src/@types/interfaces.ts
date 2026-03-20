@@ -40,6 +40,7 @@ export interface IDoctors {
   firstname: string;
   middlename: string;
   surname: string;
+  suffix: string;
   specialization: string;
   createdAt: Date;
 }
